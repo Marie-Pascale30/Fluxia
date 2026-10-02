@@ -88,6 +88,7 @@ export default async function ClientPage({ params }: PageProps<'/clients/[id]'>)
                                         ['Pièces', c.coversParts ? 'Incluses' : 'Facturables'],
                                         ['Déplacement', c.coversTravel ? 'Inclus' : 'Facturable'],
                                         ['Prochain entretien', c.nextServiceDate ? formatDate(c.nextServiceDate) : '—'],
+                                        ['Périodicité', c.serviceIntervalMonths ? `tous les ${c.serviceIntervalMonths} mois` : 'aucune'],
                                     ]}
                                 />
                             </div>

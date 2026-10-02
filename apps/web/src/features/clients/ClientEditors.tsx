@@ -94,6 +94,16 @@ export function AddContractForm({ clientId }: { clientId: string }) {
                     Prochain entretien
                     <input name="nextServiceDate" type="date" className="input" />
                 </label>
+                <label>
+                    Périodicité
+                    <select name="serviceIntervalMonths" className="select" defaultValue="12">
+                        <option value="">Aucune</option>
+                        <option value="3">Trimestrielle</option>
+                        <option value="6">Semestrielle</option>
+                        <option value="12">Annuelle</option>
+                        <option value="24">Tous les 2 ans</option>
+                    </select>
+                </label>
             </div>
             <fieldset className="checks">
                 <legend>Inclus dans le forfait</legend>

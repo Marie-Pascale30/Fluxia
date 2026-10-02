@@ -206,8 +206,11 @@ model Contract {
   coversParts     Boolean   @default(false)
   coversTravel    Boolean   @default(true)
   nextServiceDate DateTime?
+  /// Périodicité de l'entretien préventif (mois) ; null = pas d'entretien planifié automatiquement
+  serviceIntervalMonths Int?
 
-  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  interventions Intervention[]
 }
 
 model Technician {
@@ -304,12 +307,15 @@ model Intervention {
   equipmentId  String?
   technicianId String?
   requestId    String? @unique
+  /// Entretien préventif généré à partir de ce contrat
+  contractId   String?
 
   client     Client          @relation(fields: [clientId], references: [id])
   site       Site            @relation(fields: [siteId], references: [id])
   equipment  Equipment?      @relation(fields: [equipmentId], references: [id])
   technician Technician?     @relation(fields: [technicianId], references: [id])
   request    InboundRequest? @relation(fields: [requestId], references: [id])
+  contract   Contract?       @relation(fields: [contractId], references: [id])
   report      Report?
   quotes      Quote[]
   attachments Attachment[]

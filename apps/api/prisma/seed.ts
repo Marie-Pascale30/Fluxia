@@ -186,6 +186,7 @@ async function main() {
                     coversParts: false,
                     coversTravel: true,
                     nextServiceDate: at(10, 9),
+                    serviceIntervalMonths: 12,
                 },
             },
         },

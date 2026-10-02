@@ -93,3 +93,12 @@ test('reçoit et analyse une nouvelle demande', async ({ page }) => {
     await expectToast(page, 'Demande reçue et analysée');
     await expect(page.getByText('Restaurant Le Parisien').first()).toBeVisible();
 });
+
+test('programme les entretiens préventifs depuis l’accueil', async ({ page }) => {
+    await loginAs(page, 'julien@fluxia.fr');
+    const card = page.locator('.card', { has: page.getByText('Entretiens à venir') });
+    await expect(card.getByText('Cabinet Morel')).toBeVisible();
+    await card.getByRole('button', { name: 'Programmer' }).click();
+    await expectToast(page, /entretien\(s\) à planifier créé\(s\)/);
+    await expect(card.getByText(/programmée/)).toBeVisible();
+});

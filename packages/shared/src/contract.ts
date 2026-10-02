@@ -41,6 +41,19 @@ export const Contract = z.object({
     coversParts: z.boolean(),
     coversTravel: z.boolean(),
     nextServiceDate: date.nullable(),
+    serviceIntervalMonths: z.number().int().nullable(),
+});
+
+export const UpcomingMaintenance = z.array(
+    Contract.extend({
+        client: z.object({ id, name: z.string() }),
+        interventions: z.array(z.object({ id, number: z.number().int(), status: z.enum(D.INTERVENTION_STATUSES) })),
+    }),
+);
+
+export const MaintenanceRun = z.object({
+    contracts: z.number().int(),
+    created: z.array(z.object({ id, number: z.number().int(), client: z.string() })),
 });
 
 export const Client = z.object({

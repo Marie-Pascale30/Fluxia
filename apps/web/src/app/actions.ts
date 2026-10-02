@@ -341,6 +341,7 @@ export async function addContract(clientId: string, _: ActionResult | null, form
             coversLabor: form.get('coversLabor') === 'on',
             coversParts: form.get('coversParts') === 'on',
             coversTravel: form.get('coversTravel') === 'on',
+            serviceIntervalMonths: str(form, 'serviceIntervalMonths') ? Number(str(form, 'serviceIntervalMonths')) : undefined,
         });
         return 'Contrat ajouté';
     });
@@ -478,5 +479,16 @@ export async function rotatePortalLink(clientId: string) {
     return run(async () => {
         await api.portal.rotate(clientId);
         return 'Nouveau lien généré : les anciens liens ne fonctionnent plus';
+    });
+}
+
+// ─── Entretien préventif ────────────────────────────────────────
+
+export async function runMaintenance() {
+    return run(async () => {
+        const { created } = await api.maintenance.run(30);
+        return created.length
+            ? `${created.length} entretien(s) à planifier créé(s)`
+            : 'Aucun nouvel entretien : tout est déjà programmé';
     });
 }

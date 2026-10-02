@@ -30,3 +30,13 @@ describe('dates (fuseau métier Europe/Paris)', () => {
         expect(isWeekend(parseDay('2026-10-05'))).toBe(false); // lundi
     });
 });
+
+describe('addMonths', () => {
+    it('ajoute des mois en gérant les fins de mois et les années', async () => {
+        const { addMonths, fromZoned, dayKey } = await import('./dates.js');
+        expect(dayKey(addMonths(fromZoned(2026, 1, 31, 9), 1))).toBe('2026-02-28');
+        expect(dayKey(addMonths(fromZoned(2028, 1, 31, 9), 1))).toBe('2028-02-29');
+        expect(dayKey(addMonths(fromZoned(2026, 10, 12, 9), 12))).toBe('2027-10-12');
+        expect(dayKey(addMonths(fromZoned(2026, 11, 15, 9), 3))).toBe('2027-02-15');
+    });
+});

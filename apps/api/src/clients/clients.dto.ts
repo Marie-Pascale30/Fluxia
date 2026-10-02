@@ -5,8 +5,11 @@ import {
     IsEmail,
     IsIn,
     IsLatitude,
+    IsInt,
     IsLongitude,
     IsOptional,
+    Max,
+    Min,
     IsString,
     MaxLength,
     MinLength,
@@ -74,6 +77,7 @@ export class ContractInputDto {
     @IsBoolean() coversParts: boolean;
     @IsBoolean() coversTravel: boolean;
     @IsOptional() @IsDateString() nextServiceDate?: string;
+    @IsOptional() @IsInt() @Min(1) @Max(60) serviceIntervalMonths?: number;
 }
 
 export class UpdateContractDto {
@@ -84,4 +88,5 @@ export class UpdateContractDto {
     @IsOptional() @IsBoolean() coversParts?: boolean;
     @IsOptional() @IsBoolean() coversTravel?: boolean;
     @IsOptional() @IsDateString() nextServiceDate?: string;
+    @IsOptional() @IsInt() @Min(1) @Max(60) serviceIntervalMonths?: number;
 }

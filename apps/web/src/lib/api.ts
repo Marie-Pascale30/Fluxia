@@ -15,6 +15,8 @@ import type {
     InboundRequestDetail,
     Intervention,
     InterventionDetail,
+    MaintenanceRun,
+    UpcomingMaintenance,
     InterventionStatus,
     MessageLog,
     MessageStatus,
@@ -155,6 +157,11 @@ export const api = {
     },
 
     capabilities: () => get<Capabilities>('/capabilities'),
+
+    maintenance: {
+        upcoming: (days = 60) => get<UpcomingMaintenance>(`/maintenance/upcoming${qs({ days: String(days) })}`),
+        run: (horizon = 30) => post<MaintenanceRun>(`/maintenance/run${qs({ horizon: String(horizon) })}`),
+    },
 
     /** Portail client : appels anonymes, l'accès repose sur le lien signé. */
     portal: {

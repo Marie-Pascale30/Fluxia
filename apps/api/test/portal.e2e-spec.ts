@@ -9,12 +9,17 @@ describe('Portail client', () => {
 
     beforeAll(async () => {
         useToken(await login('julien@fluxia.fr'));
-        // Devis envoyé à SCI Rivoli, à partir de la demande de chiffrage
-        const requests = (await call('GET', '/requests')).body as { id: string; subject: string; quote: unknown }[];
-        const vmc = requests.find((r) => r.subject.includes('VMC'));
-        let quote = vmc && !vmc.quote ? (await call('POST', `/requests/${vmc.id}/quote`)).body : (await call('GET', '/quotes')).body.find((q: { client: { name: string } }) => q.client.name === 'SCI Rivoli');
-        if (quote.status === 'DRAFT') quote = (await call('POST', `/quotes/${quote.id}/validate`)).body;
-        if (quote.status === 'VALIDATED') quote = (await call('POST', `/quotes/${quote.id}/send`)).body;
+        // Devis envoyé à SCI Rivoli, à partir d'une nouvelle demande de chiffrage (test autonome)
+        const request = await call('POST', '/requests', {
+            fromName: 'Claire Rousseau',
+            fromEmail: 'gestion@sci-rivoli.fr',
+            subject: 'Chiffrage remplacement circulateur',
+            body: "Merci de chiffrer le remplacement du circulateur de la chaufferie de l'immeuble Rivoli.",
+        });
+        expect(request.body.client?.name).toBe('SCI Rivoli');
+        let quote = (await call('POST', `/requests/${request.body.id}/quote`)).body;
+        quote = (await call('POST', `/quotes/${quote.id}/validate`)).body;
+        quote = (await call('POST', `/quotes/${quote.id}/send`)).body;
         quoteId = quote.id;
         clientId = quote.clientId;
 

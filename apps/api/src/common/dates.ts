@@ -116,3 +116,11 @@ export const formatDateFr = (date: Date) =>
 
 export const formatShortDateFr = (date: Date) =>
     date.toLocaleDateString('fr-FR', { timeZone: APP_TIMEZONE });
+
+/** Ajoute des mois en restant sur le dernier jour du mois si nécessaire (31 janv. + 1 mois → 28/29 févr.). */
+export function addMonths(date: Date, months: number): Date {
+    const p = zonedParts(date);
+    const target = new Date(Date.UTC(p.year, p.month - 1 + months, 1));
+    const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+    return fromZoned(target.getUTCFullYear(), target.getUTCMonth() + 1, Math.min(p.day, lastDay), p.hour, p.minute);
+}

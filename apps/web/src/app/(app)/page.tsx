@@ -2,18 +2,22 @@ import Link from 'next/link';
 import { ActivityTimeline, Badge, Card, EmptyState, Kpi, PageHeader, Row } from '@/components/ui';
 import { api } from '@/lib/api';
 import { getCurrentUser } from '@/lib/current-user';
-import { formatRelative, PRIORITY, providerLabel, QUOTE_STATUS, REPORT_STATUS } from '@/lib/format';
+import { runMaintenance } from '@/app/actions';
+import { ActionButton } from '@/components/ui/ActionButton';
+import { formatDate, formatRelative, PRIORITY, providerLabel, QUOTE_STATUS, REPORT_STATUS } from '@/lib/format';
 import { PRIORITY_ORDER } from '@/lib/priority';
 
 export default async function HomePage() {
-    const [user, dashboard, requests, toSchedule, reports, quotes] = await Promise.all([
+    const [user, dashboard, requests, toSchedule, reports, quotes, maintenance] = await Promise.all([
         getCurrentUser(),
         api.dashboard(),
         api.requests.list(),
         api.interventions.list({ status: 'TO_SCHEDULE' }),
         api.reports.list(),
         api.quotes.list(),
+        api.maintenance.upcoming(60),
     ]);
+    const maintenanceDue = maintenance.filter((c) => c.interventions.length === 0);
     const c = dashboard.counters;
 
     const pendingRequests = requests
@@ -95,6 +99,35 @@ export default async function HomePage() {
                             Moteur IA : {providerLabel(dashboard.aiProvider)}
                         </div>
                     </div>
+                    <Card
+                        title="Entretiens à venir"
+                        action={
+                            maintenanceDue.length > 0 && (
+                                <ActionButton action={runMaintenance} variant="ai" size="sm" pendingLabel="Génération…">
+                                    Programmer
+                                </ActionButton>
+                            )
+                        }
+                    >
+                        {maintenance.length === 0 && <div className="muted">Aucune échéance de contrat dans les 60 prochains jours.</div>}
+                        {maintenance.map((c) => (
+                            <Row
+                                key={c.id}
+                                href={c.interventions[0] ? `/interventions/${c.interventions[0].id}` : `/clients/${c.client.id}`}
+                                title={c.client.name}
+                                subtitle={`${c.reference}${c.nextServiceDate ? ` · prochaine échéance ${formatDate(c.nextServiceDate)}` : ''}`}
+                                aside={
+                                    c.interventions[0] ? (
+                                        <Badge label={`#${c.interventions[0].number} programmée`} tone="green" />
+                                    ) : (
+                                        <Badge label="À programmer" tone="orange" />
+                                    )
+                                }
+                            />
+                        ))}
+                        <div className="muted small mt">Les entretiens dus sous 30 jours sont aussi programmés automatiquement chaque matin.</div>
+                    </Card>
+
                     <Card title="Activité récente">
                         <ActivityTimeline items={dashboard.activity} />
                     </Card>
