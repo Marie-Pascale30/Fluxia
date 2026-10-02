@@ -1,3 +1,4 @@
+import { OfflineBanner, ServiceWorker } from '@/components/layout/Connectivity';
 import { Sidebar, type NavCounters } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { api } from '@/lib/api';
@@ -34,6 +35,8 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
 
     return (
         <>
+            <ServiceWorker />
+            <OfflineBanner />
             <Sidebar counters={nav.counters} aiProvider={nav.aiProvider} user={user} />
             <div className="main">
                 <Topbar user={{ name: user.name, initials: initials(first, last), role: user.role }} />

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { logout } from '@/app/auth-actions';
+import { clearOfflineCache } from './Connectivity';
 
 const LABELS: Record<string, string> = {
     inbox: 'Inbox IA',
@@ -49,7 +50,7 @@ export function Topbar({ user }: { user: { name: string; initials: string; role:
                     {technician && ' · technicien'}
                 </span>
                 <div className="avatar">{user.initials}</div>
-                <form action={logout}>
+                <form action={logout} onSubmit={clearOfflineCache}>
                     <button className="btn light sm" title="Se déconnecter">
                         Déconnexion
                     </button>

@@ -1378,3 +1378,21 @@ label.btn input[type='file'] {
         position: static;
     }
 }
+
+/* ─── Hors ligne ────────────────────────────────────────────── */
+.offline-banner {
+    position: fixed;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    z-index: 60;
+    background: #8a5a12;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 8px 24px #0b122040;
+    max-width: calc(100vw - 32px);
+    text-align: center;
+}

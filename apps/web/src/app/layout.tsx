@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
 import { FlashToast } from '@/components/ui/FlashToast';
 import { ToastProvider } from '@/components/ui/Toast';
@@ -8,7 +8,11 @@ import './globals.css';
 export const metadata: Metadata = {
     title: { default: 'Fluxia', template: '%s · Fluxia' },
     description: 'Le bureau administratif IA des entreprises de maintenance.',
+    icons: { icon: '/icons/icon.svg', apple: '/icons/icon-192.png' },
+    appleWebApp: { capable: true, title: 'Fluxia', statusBarStyle: 'black-translucent' },
 };
+
+export const viewport: Viewport = { themeColor: '#101827' };
 
 export default async function RootLayout({ children }: LayoutProps<'/'>) {
     const flash = (await cookies()).get(FLASH_COOKIE)?.value;

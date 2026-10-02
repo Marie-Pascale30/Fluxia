@@ -22,6 +22,9 @@ async function main() {
     await prisma.$transaction([
         prisma.outboundMessage.deleteMany(),
         prisma.activity.deleteMany(),
+        prisma.invoiceLine.deleteMany(),
+        prisma.invoice.deleteMany(),
+        prisma.attachment.deleteMany(),
         prisma.quoteLine.deleteMany(),
         prisma.quote.deleteMany(),
         prisma.report.deleteMany(),

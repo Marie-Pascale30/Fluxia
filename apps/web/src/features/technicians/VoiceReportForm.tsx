@@ -41,8 +41,40 @@ const append = (prev: string, text: string) => `${prev}${prev && !prev.endsWith(
  * (`serverTranscription`), qui fonctionne sur tous les navigateurs.
  */
 export function VoiceReportForm({ interventionId, serverTranscription = false }: { interventionId: string; serverTranscription?: boolean }) {
-    const { formAction, pending } = useActionToast(submitVoiceReport.bind(null, interventionId));
-    const [note, setNote] = useState('');
+    const draftKey = `fluxia:note:${interventionId}`;
+    const { formAction, pending } = useActionToast(submitVoiceReport.bind(null, interventionId), () => {
+        try {
+            localStorage.removeItem(draftKey);
+        } catch {
+            // stockage indisponible
+        }
+    });
+    const [note, setNoteState] = useState('');
+    const restored = useRef(false);
+
+    // Brouillon conservé sur l'appareil : rien n'est perdu en cas de coupure ou de rechargement
+    useEffect(() => {
+        if (restored.current) return;
+        restored.current = true;
+        try {
+            const saved = localStorage.getItem(draftKey);
+            if (saved) queueMicrotask(() => setNoteState(saved));
+        } catch {
+            // stockage indisponible
+        }
+    }, [draftKey]);
+
+    const setNote = (value: string | ((prev: string) => string)) =>
+        setNoteState((prev) => {
+            const next = typeof value === 'function' ? value(prev) : value;
+            try {
+                if (next) localStorage.setItem(draftKey, next);
+                else localStorage.removeItem(draftKey);
+            } catch {
+                // stockage indisponible
+            }
+            return next;
+        });
     const [listening, setListening] = useState(false);
     // Dictée disponible uniquement dans les navigateurs compatibles (false au rendu serveur)
     const supported = useSyncExternalStore(noopSubscribe, hasRecognition, () => false);
