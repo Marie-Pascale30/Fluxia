@@ -18,7 +18,7 @@ export class CatalogService {
             code: i.code,
             label: i.label,
             kind: i.kind as QuoteLineKind,
-            keywords: i.keywords.split(',').map((k) => k.trim()).filter(Boolean),
+            keywords: i.keywords,
         }));
     }
 

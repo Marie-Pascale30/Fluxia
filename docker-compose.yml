@@ -1,0 +1,22 @@
+# Base de données de développement : `npm run db:up`
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fluxia
+      POSTGRES_PASSWORD: fluxia
+      POSTGRES_DB: fluxia
+    ports:
+      - '5434:5432'
+    volumes:
+      - fluxia-db:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U fluxia']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  fluxia-db:

@@ -3,7 +3,6 @@ import { ActivityService } from '../activity/activity.service.js';
 import { AiService } from '../ai/ai.service.js';
 import { ClientsService } from '../clients/clients.service.js';
 import type { InterventionType, Priority, RequestCategory } from '../common/domain.js';
-import { parseJson, toJson } from '../common/json.js';
 import { InterventionsService } from '../interventions/interventions.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { QuotesService } from '../quotes/quotes.service.js';
@@ -48,8 +47,6 @@ const CATEGORY_LABEL: Record<RequestCategory, string> = {
 const PRIORITY_LABEL: Record<Priority, string> = { LOW: 'basse', NORMAL: 'normale', HIGH: 'haute', URGENT: 'urgente' };
 const MATCH_LABEL = { email: 'email connu', domain: 'domaine email', name: 'nom cité' } as const;
 
-const present = <T extends { symptoms: string | null }>(r: T) => ({ ...r, symptoms: parseJson<string[]>(r.symptoms, []) });
-
 @Injectable()
 export class RequestsService {
     constructor(
@@ -62,12 +59,11 @@ export class RequestsService {
     ) {}
 
     async list(query: ListRequestsQuery) {
-        const requests = await this.prisma.inboundRequest.findMany({
+        return this.prisma.inboundRequest.findMany({
             where: query.status ? { status: query.status } : { status: { not: 'ARCHIVED' } },
             orderBy: [{ receivedAt: 'desc' }],
             include: { client: true, intervention: { select: { id: true, number: true } }, quote: { select: { id: true, number: true } } },
         });
-        return requests.map(present);
     }
 
     private async get(id: string) {
@@ -79,7 +75,7 @@ export class RequestsService {
     async findOne(id: string) {
         const request = await this.get(id);
         const coverage = request.clientId ? await this.clients.coverage(request.clientId) : null;
-        return { ...present(request), coverage };
+        return { ...request, coverage };
     }
 
     /** Réception d'une demande (email, formulaire…) : elle est analysée immédiatement. */
@@ -124,7 +120,7 @@ export class RequestsService {
                 category: analysis.category,
                 priority: analysis.priority,
                 summary: analysis.summary,
-                symptoms: toJson(analysis.symptoms),
+                symptoms: analysis.symptoms,
                 suggestedAction: analysis.suggestedAction,
                 confidence: analysis.confidence,
                 aiProvider: provider,
@@ -180,7 +176,7 @@ export class RequestsService {
 
         const category = (request.category as RequestCategory | null) ?? 'BREAKDOWN';
         const type = dto.type ?? CATEGORY_TO_TYPE[category];
-        const symptoms = parseJson<string[]>(request.symptoms, []);
+        const symptoms = request.symptoms;
 
         const intervention = await this.prisma.$transaction(async (tx) => {
             const created = await this.interventions.create(

@@ -4,11 +4,12 @@ import type { ReportPart } from '../ai/ai.types.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { ClientsService } from '../clients/clients.service.js';
 import type { ReportStatus } from '../common/domain.js';
-import { parseJson, toJson } from '../common/json.js';
+import { formatShortDateFr } from '../common/dates.js';
 import { assertTransition, REPORT_TRANSITIONS } from '../common/state-machine.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { computeBilling } from './billing.js';
+import { partsJson, readParts } from './parts.js';
 import type { UpdateReportDto } from './reports.dto.js';
 
 @Injectable()
@@ -47,7 +48,7 @@ export class ReportsService {
             this.catalog.priceMap(),
             this.activity.forEntities([id, report.interventionId]),
         ]);
-        const parts = parseJson<ReportPart[]>(report.parts, []);
+        const parts = readParts(report.parts);
         return {
             ...report,
             parts,
@@ -63,7 +64,7 @@ export class ReportsService {
         if (report.status !== 'DRAFT') throw new ConflictException('Seul un rapport en brouillon peut être modifié');
 
         const parts = dto.parts?.map((p) => ({ label: p.label, catalogCode: p.catalogCode ?? null, quantity: p.quantity }))
-            ?? parseJson<ReportPart[]>(report.parts, []);
+            ?? readParts(report.parts);
         const laborHours = dto.laborHours ?? report.laborHours;
         const [coverage, prices] = await Promise.all([
             this.clients.coverage(report.intervention.clientId, report.createdAt),
@@ -80,7 +81,7 @@ export class ReportsService {
                 result: dto.result,
                 recommendation: dto.recommendation,
                 laborHours,
-                parts: toJson(parts),
+                parts: partsJson(parts),
                 billable: billing.billable,
                 billingNotes: billing.notes,
             },
@@ -120,7 +121,7 @@ export class ReportsService {
                     {
                         recipient: intervention.client.email,
                         subject: `Rapport d'intervention #${intervention.number}`,
-                        body: `Bonjour,\n\nVoici le rapport de l'intervention du ${report.createdAt.toLocaleDateString('fr-FR')}.\n\nDiagnostic : ${report.diagnosis}\nTravaux : ${report.workDone}\nRésultat : ${report.result}${report.recommendation ? `\nRecommandation : ${report.recommendation}` : ''}\n\nCordialement,\nL'équipe maintenance`,
+                        body: `Bonjour,\n\nVoici le rapport de l'intervention du ${formatShortDateFr(report.createdAt)}.\n\nDiagnostic : ${report.diagnosis}\nTravaux : ${report.workDone}\nRésultat : ${report.result}${report.recommendation ? `\nRecommandation : ${report.recommendation}` : ''}\n\nCordialement,\nL'équipe maintenance`,
                         entityType: 'REPORT',
                         entityId: id,
                     },

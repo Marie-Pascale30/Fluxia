@@ -1,5 +1,5 @@
 // Moteur de planification — fonctions pures, sans accès base de données.
-import { addMinutes, atTime, formatDateFr, formatTimeFr, overlaps, startOfDay } from '../common/dates.js';
+import { addDays, addMinutes, atTime, formatDateFr, formatTimeFr, isWeekend, overlaps, sameDay, startOfDay } from '../common/dates.js';
 import { WORKDAY, type EquipmentType, type Priority } from '../common/domain.js';
 import { distanceKm, estimateTravelMinutes } from '../common/geo.js';
 
@@ -51,16 +51,14 @@ export interface Recommendation {
     reasons: Reason[];
 }
 
-const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6;
-
 /** Jours ouvrés à explorer selon l'urgence. */
 export function searchDays(from: Date, priority: Priority): Date[] {
     const count = priority === 'URGENT' ? 2 : priority === 'HIGH' ? 3 : 5;
     const days: Date[] = [];
-    const cursor = startOfDay(from);
+    let cursor = startOfDay(from);
     while (days.length < count) {
-        if (!isWeekend(cursor)) days.push(new Date(cursor));
-        cursor.setDate(cursor.getDate() + 1);
+        if (!isWeekend(cursor)) days.push(cursor);
+        cursor = addDays(cursor, 1);
     }
     return days;
 }
@@ -99,8 +97,7 @@ const EQUIPMENT_LABEL: Record<EquipmentType, string> = {
 };
 
 function describeSlot(slot: TimeRange, now: Date): string {
-    const sameDay = startOfDay(slot.start).getTime() === startOfDay(now).getTime();
-    return sameDay ? `${formatTimeFr(slot.start)} aujourd'hui` : `${formatDateFr(slot.start)} à ${formatTimeFr(slot.start)}`;
+    return sameDay(slot.start, now) ? `${formatTimeFr(slot.start)} aujourd'hui` : `${formatDateFr(slot.start)} à ${formatTimeFr(slot.start)}`;
 }
 
 /**
@@ -142,7 +139,7 @@ export function recommendTechnicians(ctx: RecommendationContext, candidates: Can
         // Disponibilité : premier créneau compatible (temps de trajet compris le jour même)
         let slot: TimeRange | null = null;
         for (const day of days) {
-            const notBefore = startOfDay(day).getTime() === startOfDay(ctx.now).getTime()
+            const notBefore = sameDay(day, ctx.now)
                 ? addMinutes(ctx.now, travelMinutes)
                 : atTime(day, WORKDAY.startHour);
             slot = firstFreeSlot(day, tech.busy, ctx.durationMinutes, notBefore);

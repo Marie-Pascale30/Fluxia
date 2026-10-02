@@ -1,9 +1,6 @@
-// Modèle de données Fluxia.
-// SQLite pour le développement (zéro installation). Pour PostgreSQL :
-// provider = "postgresql" + DATABASE_URL, puis `npm run db:setup`.
-// SQLite ne supporte pas les enums : les valeurs autorisées sont
-// définies et validées dans src/common/domain.ts.
-// Les montants sont stockés en centimes (Int) pour éviter les erreurs d'arrondi.
+// Modèle de données Fluxia (PostgreSQL).
+// Montants en centimes (Int) ; dates en UTC, affichées dans APP_TIMEZONE.
+// Évolution du schéma : `npm run db:migrate -- --name <changement>`.
 
 generator client {
   provider     = "prisma-client"
@@ -13,9 +10,106 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ─── Vocabulaire métier ──────────────────────────────────────────
+
+enum EquipmentType {
+  CLIMATISATION
+  CHAUFFAGE
+  VMC
+  PLOMBERIE
+  ELECTRICITE
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum RequestChannel {
+  EMAIL
+  PHONE
+  FORM
+}
+
+enum RequestStatus {
+  NEW
+  ANALYZED
+  CONVERTED
+  ARCHIVED
+}
+
+enum RequestCategory {
+  BREAKDOWN
+  QUOTE_REQUEST
+  MAINTENANCE
+  OTHER
+}
+
+enum SuggestedAction {
+  CREATE_INTERVENTION
+  PREPARE_QUOTE
+  SCHEDULE_MAINTENANCE
+  REPLY
+}
+
+enum InterventionType {
+  BREAKDOWN
+  MAINTENANCE
+  INSTALLATION
+  AFTER_SALES
+}
+
+enum InterventionStatus {
+  TO_SCHEDULE
+  SCHEDULED
+  DISPATCHED
+  IN_PROGRESS
+  COMPLETED
+  CLOSED
+  CANCELLED
+}
+
+enum ReportStatus {
+  DRAFT
+  VALIDATED
+  SENT
+}
+
+enum QuoteStatus {
+  DRAFT
+  VALIDATED
+  SENT
+  ACCEPTED
+  REFUSED
+}
+
+enum QuoteLineKind {
+  PART
+  LABOR
+  TRAVEL
+  OTHER
+}
+
+enum ActivityActor {
+  AI
+  USER
+  TECHNICIAN
+  SYSTEM
+}
+
+enum MessageChannel {
+  EMAIL
+  SMS
+  PUSH
+}
+
+// ─── Référentiels ────────────────────────────────────────────────
 
 model Client {
   id          String   @id @default(cuid())
@@ -33,7 +127,7 @@ model Client {
 }
 
 model Site {
-  id         String  @id @default(cuid())
+  id         String @id @default(cuid())
   clientId   String
   label      String
   address    String
@@ -42,16 +136,16 @@ model Site {
   lat        Float
   lng        Float
 
-  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  client        Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
   equipments    Equipment[]
   interventions Intervention[]
   requests      InboundRequest[]
 }
 
 model Equipment {
-  id          String    @id @default(cuid())
+  id          String        @id @default(cuid())
   siteId      String
-  type        String // EquipmentType
+  type        EquipmentType
   label       String
   brand       String?
   model       String?
@@ -78,36 +172,48 @@ model Contract {
 }
 
 model Technician {
-  id        String  @id @default(cuid())
+  id        String          @id @default(cuid())
   firstName String
   lastName  String
-  email     String  @unique
+  email     String          @unique
   phone     String?
-  skills    String // liste d'EquipmentType séparés par des virgules
+  skills    EquipmentType[]
   baseLat   Float
   baseLng   Float
-  active    Boolean @default(true)
+  active    Boolean         @default(true)
 
   interventions Intervention[]
 }
 
+model CatalogItem {
+  id             String        @id @default(cuid())
+  code           String        @unique
+  kind           QuoteLineKind
+  label          String
+  unitPriceCents Int
+  /// Mots-clés détectés dans les notes des techniciens
+  keywords       String[]
+}
+
+// ─── Flux métier ─────────────────────────────────────────────────
+
 model InboundRequest {
-  id          String   @id @default(cuid())
-  channel     String   @default("EMAIL") // RequestChannel
+  id          String         @id @default(cuid())
+  channel     RequestChannel @default(EMAIL)
   fromName    String
   fromEmail   String
   subject     String
   body        String
-  receivedAt  DateTime @default(now())
-  status      String   @default("NEW") // RequestStatus
-  attachments Int      @default(0)
+  receivedAt  DateTime       @default(now())
+  status      RequestStatus  @default(NEW)
+  attachments Int            @default(0)
 
   // Résultat d'analyse IA
-  category        String? // RequestCategory
-  priority        String? // Priority
+  category        RequestCategory?
+  priority        Priority?
   summary         String?
-  symptoms        String? // JSON string[]
-  suggestedAction String? // SuggestedAction
+  symptoms        String[]
+  suggestedAction SuggestedAction?
   confidence      Float?
   aiProvider      String?
   analyzedAt      DateTime?
@@ -121,27 +227,29 @@ model InboundRequest {
   equipment    Equipment?    @relation(fields: [equipmentId], references: [id])
   intervention Intervention?
   quote        Quote?
+
+  @@index([status, receivedAt])
 }
 
 model Intervention {
-  id                String    @id @default(cuid())
-  number            Int       @unique
-  type              String    @default("BREAKDOWN") // InterventionType
-  priority          String    @default("NORMAL") // Priority
-  status            String    @default("TO_SCHEDULE") // InterventionStatus
-  title             String
-  description       String
-  initialDiagnosis  String?
-  estimatedMinutes  Int       @default(90)
-  scheduledStart    DateTime?
-  scheduledEnd      DateTime?
-  dispatchedAt      DateTime?
-  startedAt         DateTime?
-  completedAt       DateTime?
-  closedAt          DateTime?
-  cancelledReason   String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id               String             @id @default(cuid())
+  number           Int                @unique
+  type             InterventionType   @default(BREAKDOWN)
+  priority         Priority           @default(NORMAL)
+  status           InterventionStatus @default(TO_SCHEDULE)
+  title            String
+  description      String
+  initialDiagnosis String?
+  estimatedMinutes Int                @default(90)
+  scheduledStart   DateTime?
+  scheduledEnd     DateTime?
+  dispatchedAt     DateTime?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  closedAt         DateTime?
+  cancelledReason  String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   clientId     String
   siteId       String
@@ -162,21 +270,22 @@ model Intervention {
 }
 
 model Report {
-  id             String    @id @default(cuid())
-  interventionId String    @unique
-  status         String    @default("DRAFT") // ReportStatus
+  id             String       @id @default(cuid())
+  interventionId String       @unique
+  status         ReportStatus @default(DRAFT)
   voiceNote      String
   reason         String
   diagnosis      String
   workDone       String
   result         String
   recommendation String?
-  parts          String    @default("[]") // JSON ReportPart[]
-  laborHours     Float     @default(1)
-  billable       Boolean   @default(false)
+  /// ReportPart[] : { label, catalogCode, quantity }
+  parts          Json         @default("[]")
+  laborHours     Float        @default(1)
+  billable       Boolean      @default(false)
   billingNotes   String?
   aiProvider     String
-  createdAt      DateTime  @default(now())
+  createdAt      DateTime     @default(now())
   validatedAt    DateTime?
   sentAt         DateTime?
 
@@ -185,18 +294,19 @@ model Report {
 }
 
 model Quote {
-  id             String    @id @default(cuid())
-  number         String    @unique
-  status         String    @default("DRAFT") // QuoteStatus
-  title          String
-  notes          String?
-  warnings       String? // JSON string[] : points à contrôler
-  vatRate        Float     @default(0.2)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  validatedAt    DateTime?
-  sentAt         DateTime?
-  decidedAt      DateTime?
+  id          String      @id @default(cuid())
+  number      String      @unique
+  status      QuoteStatus @default(DRAFT)
+  title       String
+  notes       String?
+  /// Points que le responsable doit contrôler avant validation
+  warnings    String[]
+  vatRate     Float       @default(0.2)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  validatedAt DateTime?
+  sentAt      DateTime?
+  decidedAt   DateTime?
 
   clientId       String
   interventionId String?
@@ -211,46 +321,50 @@ model Quote {
 }
 
 model QuoteLine {
-  id                 String @id @default(cuid())
-  quoteId            String
-  position           Int
-  kind               String // QuoteLineKind
-  label              String
-  quantity           Float
-  unitPriceCents     Int
-  catalogCode        String?
+  id             String        @id @default(cuid())
+  quoteId        String
+  position       Int
+  kind           QuoteLineKind
+  label          String
+  quantity       Float
+  unitPriceCents Int
+  catalogCode    String?
 
   quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 }
 
-model CatalogItem {
-  id             String @id @default(cuid())
-  code           String @unique
-  kind           String // QuoteLineKind
-  label          String
-  unitPriceCents Int
-  keywords       String // mots-clés séparés par des virgules (détection dans les notes)
-}
+// ─── Traçabilité ─────────────────────────────────────────────────
 
-// Journal d'audit : chaque action de l'IA ou d'un humain est tracée.
+/// Journal d'audit : chaque action de l'IA ou d'un humain est tracée.
 model Activity {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  actor      String // ActivityActor
+  id         String        @id @default(cuid())
+  createdAt  DateTime      @default(now())
+  actor      ActivityActor
   type       String
   message    String
   entityType String
   entityId   String
+
+  @@index([entityId])
+  @@index([createdAt])
 }
 
-// Messages sortants (emails clients, missions techniciens) — simulés.
+/// Messages sortants (emails clients, missions techniciens, SMS).
 model OutboundMessage {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  channel    String   @default("EMAIL")
+  id         String         @id @default(cuid())
+  createdAt  DateTime       @default(now())
+  channel    MessageChannel @default(EMAIL)
   recipient  String
   subject    String
   body       String
   entityType String
   entityId   String
+
+  @@index([entityId])
+}
+
+/// Compteurs de numérotation (interventions, devis…) incrémentés atomiquement.
+model Counter {
+  key   String @id
+  value Int
 }

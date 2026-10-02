@@ -8,6 +8,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { FLASH_COOKIE } from '@/lib/flash';
+import { fromLocalInput } from '@/lib/format';
 
 export interface ActionResult {
     ok: boolean;
@@ -42,8 +43,6 @@ const str = (form: FormData, key: string) => {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined;
 };
 
-/** Valeur "datetime-local" (heure locale du serveur) → ISO. */
-const localToIso = (value: string) => new Date(value).toISOString();
 
 // ─── Demandes entrantes ─────────────────────────────────────────
 
@@ -117,7 +116,7 @@ export async function assignManually(id: string, _: ActionResult | null, form: F
         const duration = str(form, 'duration');
         await api.interventions.assign(id, {
             technicianId,
-            start: localToIso(start),
+            start: fromLocalInput(start),
             durationMinutes: duration ? Number(duration) : undefined,
         });
         return 'Affectation enregistrée';

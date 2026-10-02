@@ -4,8 +4,9 @@ import { AiService } from '../ai/ai.service.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { ClientsService } from '../clients/clients.service.js';
 import { addMinutes, atTime, formatDateFr, formatTimeFr } from '../common/dates.js';
+import { nextValue } from '../common/numbering.js';
 import { WORKDAY, type ActivityActor, type InterventionStatus } from '../common/domain.js';
-import { parseJson, toJson } from '../common/json.js';
+import { partsJson, readParts } from '../reports/parts.js';
 import { assertTransition, INTERVENTION_TRANSITIONS } from '../common/state-machine.js';
 import { PlanningService } from '../planning/planning.service.js';
 import { PrismaService, type Tx } from '../prisma/prisma.service.js';
@@ -65,7 +66,7 @@ export class InterventionsService {
         ]);
         return {
             ...intervention,
-            report: intervention.report ? { ...intervention.report, parts: parseJson(intervention.report.parts, []) } : null,
+            report: intervention.report ? { ...intervention.report, parts: readParts(intervention.report.parts) } : null,
             coverage,
             timeline,
             messages,
@@ -79,8 +80,7 @@ export class InterventionsService {
             throw new BadRequestException('Équipement invalide pour ce site');
         }
 
-        const last = await tx.intervention.aggregate({ _max: { number: true } });
-        const number = Math.max(FIRST_NUMBER, (last._max.number ?? 0) + 1);
+        const number = await nextValue(tx, 'intervention', FIRST_NUMBER);
 
         const intervention = await tx.intervention.create({
             data: {
@@ -277,7 +277,7 @@ export class InterventionsService {
                     workDone: draft.workDone,
                     result: draft.result,
                     recommendation: draft.recommendation,
-                    parts: toJson(draft.parts),
+                    parts: partsJson(draft.parts),
                     laborHours: draft.laborHours,
                     billable: billing.billable,
                     billingNotes: billing.notes,

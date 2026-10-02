@@ -48,6 +48,24 @@ export function toLocalInput(iso: string | Date) {
     return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
+/** Valeur "datetime-local" saisie à l'heure de Paris → instant ISO (indépendant du fuseau serveur). */
+export function fromLocalInput(value: string): string {
+    const [date, time = '00:00'] = value.split('T');
+    const [y, mo, d] = date.split('-').map(Number);
+    const [h, mi] = time.split(':').map(Number);
+    const wall = Date.UTC(y, mo - 1, d, h, mi);
+    const offset = (at: number) => {
+        const local = toLocalInput(new Date(at));
+        const [ld, lt] = local.split('T');
+        const [ly, lmo, lday] = ld.split('-').map(Number);
+        const [lh, lmi] = lt.split(':').map(Number);
+        return Date.UTC(ly, lmo - 1, lday, lh, lmi) - at;
+    };
+    let instant = wall - offset(wall);
+    instant = wall - offset(instant);
+    return new Date(instant).toISOString();
+}
+
 /** Minutes écoulées depuis minuit (heure de Paris). */
 export function minutesOfDay(iso: string | Date) {
     const [h, m] = toLocalInput(iso).slice(11).split(':').map(Number);

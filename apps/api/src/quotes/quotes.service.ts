@@ -1,15 +1,18 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ActivityService } from '../activity/activity.service.js';
 import { AiService } from '../ai/ai.service.js';
-import type { ReportPart } from '../ai/ai.types.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { ClientsService } from '../clients/clients.service.js';
+import { zonedParts } from '../common/dates.js';
 import type { QuoteStatus } from '../common/domain.js';
-import { parseJson, toJson } from '../common/json.js';
+import { nextValue } from '../common/numbering.js';
 import { assertTransition, QUOTE_TRANSITIONS } from '../common/state-machine.js';
 import { PrismaService, type Tx } from '../prisma/prisma.service.js';
 import { computeBilling, quoteTotals, type BillableLine } from '../reports/billing.js';
+import { readParts } from '../reports/parts.js';
 import type { ListQuotesQuery, UpdateQuoteDto } from './quotes.dto.js';
+
+const FIRST_QUOTE_SEQUENCE = 91;
 
 const include = {
     client: true,
@@ -19,10 +22,10 @@ const include = {
     request: { select: { id: true, subject: true } },
 } as const;
 
-type QuoteLike = { warnings: string | null; vatRate: number; lines: { quantity: number; unitPriceCents: number }[] };
+type QuoteLike = { vatRate: number; lines: { quantity: number; unitPriceCents: number }[] };
 
 function present<T extends QuoteLike>(quote: T) {
-    return { ...quote, warnings: parseJson<string[]>(quote.warnings, []), ...quoteTotals(quote.lines, quote.vatRate) };
+    return { ...quote, ...quoteTotals(quote.lines, quote.vatRate) };
 }
 
 @Injectable()
@@ -56,12 +59,11 @@ export class QuotesService {
         return { ...present(quote), timeline, messages };
     }
 
+    /** D-2026-091 : numérotation annuelle, sans doublon. */
     private async nextNumber(tx: Tx) {
-        const year = new Date().getFullYear();
-        const prefix = `D-${year}-`;
-        const last = await tx.quote.findFirst({ where: { number: { startsWith: prefix } }, orderBy: { number: 'desc' } });
-        const seq = last ? Number(last.number.slice(prefix.length)) + 1 : 91;
-        return `${prefix}${String(seq).padStart(3, '0')}`;
+        const { year } = zonedParts(new Date());
+        const seq = await nextValue(tx, `quote:${year}`, FIRST_QUOTE_SEQUENCE);
+        return `D-${year}-${String(seq).padStart(3, '0')}`;
     }
 
     private async createDraft(
@@ -84,7 +86,7 @@ export class QuotesService {
                 clientId: data.clientId,
                 title: data.title,
                 notes: data.notes,
-                warnings: toJson(data.warnings),
+                warnings: data.warnings,
                 interventionId: data.interventionId,
                 reportId: data.reportId,
                 requestId: data.requestId,
@@ -118,7 +120,7 @@ export class QuotesService {
             this.catalog.priceMap(),
             this.clients.coverage(report.intervention.clientId),
         ]);
-        const billing = computeBilling(parseJson<ReportPart[]>(report.parts, []), report.laborHours, coverage, prices);
+        const billing = computeBilling(readParts(report.parts), report.laborHours, coverage, prices);
 
         const quote = await this.prisma.$transaction((tx) =>
             this.createDraft(

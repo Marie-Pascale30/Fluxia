@@ -3,11 +3,6 @@ import { endOfDay, startOfDay } from '../common/dates.js';
 import { PLANNED_STATUSES } from '../common/domain.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
-const withSkills = <T extends { skills: string }>(t: T) => ({
-    ...t,
-    skills: t.skills.split(',').map((s) => s.trim()).filter(Boolean),
-});
-
 const missionInclude = {
     client: true,
     site: true,
@@ -37,7 +32,7 @@ export class TechniciansService {
         });
 
         return technicians.map(({ interventions, ...t }) => ({
-            ...withSkills(t),
+            ...t,
             today: interventions,
             plannedMinutes: interventions.reduce(
                 (sum, i) => sum + (i.scheduledEnd!.getTime() - i.scheduledStart!.getTime()) / 60_000,
@@ -48,7 +43,7 @@ export class TechniciansService {
 
     async findRaw() {
         const technicians = await this.prisma.technician.findMany({ where: { active: true } });
-        return technicians.map(withSkills);
+        return technicians;
     }
 
     /** Vue terrain : missions du technicien pour un jour donné. */
@@ -66,6 +61,6 @@ export class TechniciansService {
             include: missionInclude,
         });
 
-        return { ...withSkills(technician), missions };
+        return { ...technician, missions };
     }
 }

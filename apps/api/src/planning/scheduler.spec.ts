@@ -1,8 +1,8 @@
-import { atTime } from '../common/dates.js';
+import { atTime, fromZoned, zonedParts } from '../common/dates.js';
 import { firstFreeSlot, isFree, recommendTechnicians, searchDays, type CandidateTechnician } from './scheduler.js';
 
 // Un mardi, pour éviter les week-ends
-const TUESDAY = new Date(2026, 8, 29);
+const TUESDAY = fromZoned(2026, 9, 29);
 const at = (h: number, m = 0) => atTime(TUESDAY, h, m);
 
 const base: Omit<CandidateTechnician, 'id' | 'name'> = {
@@ -45,9 +45,9 @@ describe('isFree', () => {
 
 describe('searchDays', () => {
     it('saute le week-end', () => {
-        const friday = new Date(2026, 9, 2);
+        const friday = fromZoned(2026, 10, 2);
         const days = searchDays(friday, 'HIGH');
-        expect(days.map((d) => d.getDay())).toEqual([5, 1, 2]);
+        expect(days.map((d) => zonedParts(d).weekday)).toEqual([5, 1, 2]);
     });
 });
 

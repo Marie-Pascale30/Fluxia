@@ -1,17 +1,14 @@
 // Données de démonstration — relatives à la date du jour.
 // Lancer : npm run db:reset (efface et recrée la base).
-import { PrismaClient } from '../src/generated/prisma/client.js';
+import { addDays, atTime, fromZoned, startOfDay, zonedParts } from '../src/common/dates.js';
+import { PrismaClient, type EquipmentType, type InterventionType } from '../src/generated/prisma/client.js';
 
 const prisma = new PrismaClient();
 
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-const at = (dayOffset: number, h: number, m = 0) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() + dayOffset);
-    d.setHours(h, m, 0, 0);
-    return d;
-};
+// Dates calculées dans le fuseau métier (APP_TIMEZONE)
+const today = startOfDay(new Date());
+const { year, month } = zonedParts(today);
+const at = (dayOffset: number, h: number, m = 0) => atTime(addDays(today, dayOffset), h, m);
 const plus = (d: Date, minutes: number) => new Date(d.getTime() + minutes * 60_000);
 const daysAgo = (n: number) => at(-n, 10);
 
@@ -31,33 +28,34 @@ async function main() {
         prisma.client.deleteMany(),
         prisma.technician.deleteMany(),
         prisma.catalogItem.deleteMany(),
+        prisma.counter.deleteMany(),
     ]);
 
     // ── Catalogue ────────────────────────────────────────────────
     await prisma.catalogItem.createMany({
         data: [
-            { code: 'COND-CLIM', kind: 'PART', label: 'Condensateur de démarrage climatisation', unitPriceCents: 8600, keywords: 'condensateur' },
-            { code: 'FILT-CLIM', kind: 'PART', label: 'Filtre unité intérieure', unitPriceCents: 3500, keywords: 'filtre' },
-            { code: 'GAZ-R32', kind: 'PART', label: 'Recharge fluide R32 (kg)', unitPriceCents: 12000, keywords: 'r32,recharge de gaz,recharge gaz,fluide frigorigene' },
-            { code: 'MOT-VMC', kind: 'PART', label: 'Moteur de VMC simple flux', unitPriceCents: 42000, keywords: 'moteur vmc,moteur de vmc,moteur' },
-            { code: 'CIRC-CH', kind: 'PART', label: 'Circulateur chauffage', unitPriceCents: 31000, keywords: 'circulateur' },
-            { code: 'VASE-EXP', kind: 'PART', label: "Vase d'expansion 18 L", unitPriceCents: 9500, keywords: "vase d'expansion,vase expansion" },
-            { code: 'SONDE-T', kind: 'PART', label: 'Sonde de température', unitPriceCents: 4500, keywords: 'sonde' },
-            { code: 'NETT-CLIM', kind: 'OTHER', label: 'Nettoyage complet unité extérieure', unitPriceCents: 15000, keywords: 'nettoyage complet' },
-            { code: 'MO-H', kind: 'LABOR', label: "Main d'œuvre technicien (heure)", unitPriceCents: 7500, keywords: '' },
-            { code: 'DEPL', kind: 'TRAVEL', label: 'Forfait déplacement Paris', unitPriceCents: 4500, keywords: '' },
+            { code: 'COND-CLIM', kind: 'PART', label: 'Condensateur de démarrage climatisation', unitPriceCents: 8600, keywords: ['condensateur'] },
+            { code: 'FILT-CLIM', kind: 'PART', label: 'Filtre unité intérieure', unitPriceCents: 3500, keywords: ['filtre'] },
+            { code: 'GAZ-R32', kind: 'PART', label: 'Recharge fluide R32 (kg)', unitPriceCents: 12000, keywords: ['r32', 'recharge de gaz', 'recharge gaz', 'fluide frigorigene'] },
+            { code: 'MOT-VMC', kind: 'PART', label: 'Moteur de VMC simple flux', unitPriceCents: 42000, keywords: ['moteur vmc', 'moteur de vmc', 'moteur'] },
+            { code: 'CIRC-CH', kind: 'PART', label: 'Circulateur chauffage', unitPriceCents: 31000, keywords: ['circulateur'] },
+            { code: 'VASE-EXP', kind: 'PART', label: "Vase d'expansion 18 L", unitPriceCents: 9500, keywords: ["vase d'expansion", 'vase expansion'] },
+            { code: 'SONDE-T', kind: 'PART', label: 'Sonde de température', unitPriceCents: 4500, keywords: ['sonde'] },
+            { code: 'NETT-CLIM', kind: 'OTHER', label: 'Nettoyage complet unité extérieure', unitPriceCents: 15000, keywords: ['nettoyage complet'] },
+            { code: 'MO-H', kind: 'LABOR', label: "Main d'œuvre technicien (heure)", unitPriceCents: 7500, keywords: [] },
+            { code: 'DEPL', kind: 'TRAVEL', label: 'Forfait déplacement Paris', unitPriceCents: 4500, keywords: [] },
         ],
     });
 
     // ── Techniciens ──────────────────────────────────────────────
     const thomas = await prisma.technician.create({
-        data: { firstName: 'Thomas', lastName: 'Martin', email: 'thomas.martin@fluxia.fr', phone: '06 12 34 56 78', skills: 'CLIMATISATION,VMC', baseLat: 48.8698, baseLng: 2.3522 },
+        data: { firstName: 'Thomas', lastName: 'Martin', email: 'thomas.martin@fluxia.fr', phone: '06 12 34 56 78', skills: ['CLIMATISATION', 'VMC'], baseLat: 48.8698, baseLng: 2.3522 },
     });
     const marc = await prisma.technician.create({
-        data: { firstName: 'Marc', lastName: 'Lefèvre', email: 'marc.lefevre@fluxia.fr', phone: '06 23 45 67 89', skills: 'CHAUFFAGE,PLOMBERIE', baseLat: 48.8352, baseLng: 2.3219 },
+        data: { firstName: 'Marc', lastName: 'Lefèvre', email: 'marc.lefevre@fluxia.fr', phone: '06 23 45 67 89', skills: ['CHAUFFAGE', 'PLOMBERIE'], baseLat: 48.8352, baseLng: 2.3219 },
     });
     const sophie = await prisma.technician.create({
-        data: { firstName: 'Sophie', lastName: 'Dubois', email: 'sophie.dubois@fluxia.fr', phone: '06 34 56 78 90', skills: 'CLIMATISATION,CHAUFFAGE,VMC', baseLat: 48.8925, baseLng: 2.2386 },
+        data: { firstName: 'Sophie', lastName: 'Dubois', email: 'sophie.dubois@fluxia.fr', phone: '06 34 56 78 90', skills: ['CLIMATISATION', 'CHAUFFAGE', 'VMC'], baseLat: 48.8925, baseLng: 2.2386 },
     });
 
     // ── Clients, sites, équipements, contrats ────────────────────
@@ -77,7 +75,7 @@ async function main() {
                     lng: 2.3589,
                     equipments: {
                         create: [
-                            { type: 'CLIMATISATION', label: 'Climatisation — unité extérieure', brand: 'Daikin', model: 'RZAG71', installedAt: new Date(2021, 3, 1) },
+                            { type: 'CLIMATISATION', label: 'Climatisation — unité extérieure', brand: 'Daikin', model: 'RZAG71', installedAt: fromZoned(2021, 4, 1) },
                             { type: 'VMC', label: 'VMC cuisine', brand: 'Aldes' },
                             { type: 'CHAUFFAGE', label: 'Chaudière gaz', brand: 'Viessmann' },
                         ],
@@ -88,8 +86,8 @@ async function main() {
                 create: {
                     reference: 'MAINT-CVC-2026-014',
                     label: 'Maintenance CVC — main d’œuvre et déplacement inclus',
-                    startDate: new Date(today.getFullYear(), 0, 1),
-                    endDate: new Date(today.getFullYear(), 11, 31),
+                    startDate: fromZoned(year, 1, 1),
+                    endDate: fromZoned(year, 12, 31, 23, 59),
                     coversLabor: true,
                     coversParts: false,
                     coversTravel: true,
@@ -136,8 +134,8 @@ async function main() {
                 create: {
                     reference: 'MAINT-IMM-2025-007',
                     label: 'Maintenance préventive immeubles',
-                    startDate: new Date(today.getFullYear() - 1, 6, 1),
-                    endDate: new Date(today.getFullYear() + 1, 5, 30),
+                    startDate: fromZoned(year - 1, 7, 1),
+                    endDate: fromZoned(year + 1, 6, 30, 23, 59),
                     coversLabor: false,
                     coversParts: false,
                     coversTravel: true,
@@ -167,8 +165,8 @@ async function main() {
                 create: {
                     reference: 'ENT-2025-031',
                     label: 'Entretien annuel climatisation',
-                    startDate: new Date(today.getFullYear() - 1, today.getMonth(), 15),
-                    endDate: new Date(today.getFullYear(), today.getMonth() + 1, 14),
+                    startDate: fromZoned(year - 1, month, 15),
+                    endDate: fromZoned(year, month + 1, 14, 23, 59),
                     coversLabor: true,
                     coversParts: false,
                     coversTravel: true,
@@ -198,7 +196,7 @@ async function main() {
                             city: 'Paris',
                             lat: c.lat,
                             lng: c.lng,
-                            equipments: { create: [{ type: c.type, label: c.label }] },
+                            equipments: { create: [{ type: c.type as EquipmentType, label: c.label }] },
                         },
                     },
                 },
@@ -253,7 +251,7 @@ async function main() {
     }
 
     // ── Planning du jour ─────────────────────────────────────────
-    const planned: [typeof thomas, (typeof others)[number], number, number, number, string, string][] = [
+    const planned: [typeof thomas, (typeof others)[number], number, number, number, InterventionType, string][] = [
         [thomas, abc, 9, 0, 90, 'MAINTENANCE', 'Entretien climatisation'],
         [marc, atlas, 9, 0, 120, 'BREAKDOWN', 'Chaudière en sécurité'],
         [marc, atlas, 11, 30, 60, 'AFTER_SALES', 'Contrôle pression circuit'],
@@ -313,7 +311,7 @@ async function main() {
             category: 'BREAKDOWN',
             priority: 'URGENT',
             summary: 'Panne signalée — absence de froid + bruit inhabituel — intervention rapide demandée.',
-            symptoms: JSON.stringify(['Absence de froid', 'Bruit inhabituel']),
+            symptoms: ['Absence de froid', 'Bruit inhabituel'],
             suggestedAction: 'CREATE_INTERVENTION',
             confidence: 0.92,
             aiProvider: 'heuristic',
@@ -336,7 +334,7 @@ async function main() {
             category: 'QUOTE_REQUEST',
             priority: 'NORMAL',
             summary: 'Demande de chiffrage — remplacement du moteur de VMC collective.',
-            symptoms: JSON.stringify([]),
+            symptoms: [],
             suggestedAction: 'PREPARE_QUOTE',
             confidence: 0.88,
             aiProvider: 'heuristic',
@@ -358,7 +356,7 @@ async function main() {
             category: 'MAINTENANCE',
             priority: 'NORMAL',
             summary: 'Demande d’entretien annuel — échéance du contrat le mois prochain.',
-            symptoms: JSON.stringify([]),
+            symptoms: [],
             suggestedAction: 'SCHEDULE_MAINTENANCE',
             confidence: 0.85,
             aiProvider: 'heuristic',
@@ -379,6 +377,9 @@ async function main() {
             status: 'NEW',
         },
     });
+
+    // Prochain numéro d'intervention : 4581 (les numéros < 4581 sont l'historique de démo)
+    await prisma.counter.create({ data: { key: 'intervention', value: 4580 } });
 
     await prisma.activity.create({
         data: { actor: 'SYSTEM', type: 'SEED', message: 'Données de démonstration chargées', entityType: 'SYSTEM', entityId: 'seed' },

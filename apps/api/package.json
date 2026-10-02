@@ -15,10 +15,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "postinstall": "prisma generate",
-    "db:setup": "prisma db push && npm run db:seed",
-    "db:reset": "prisma db push --force-reset && npm run db:seed",
+    "db:setup": "prisma migrate deploy && npm run db:seed",
+    "db:reset": "prisma migrate reset --force",
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.130.0",
@@ -49,7 +51,9 @@
     "supertest": "^7.0.0",
     "tsx": "^4.23.15",
     "typescript": "^6.0.2",
-    "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^4.1.2"
+  },
+  "prisma": {
+    "seed": "tsx --env-file=.env prisma/seed.ts"
   }
 }
