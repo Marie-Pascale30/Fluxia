@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Badge, Card, EmptyState, KeyValue, PageHeader, Row } from '@/components/ui';
+import { PortalLink } from '@/features/portal/PortalLink';
 import { AddContractForm, AddEquipmentForm, AddSiteForm, DeleteEquipmentButton, EditClientForm } from '@/features/clients/ClientEditors';
 import { api } from '@/lib/api';
 import { orNotFound } from '@/lib/data';
@@ -10,7 +11,7 @@ const isActive = (c: Contract, at = new Date()) => new Date(c.startDate) <= at &
 
 export default async function ClientPage({ params }: PageProps<'/clients/[id]'>) {
     const { id } = await params;
-    const client = await orNotFound(api.clients.get(id));
+    const [client, portal] = await Promise.all([orNotFound(api.clients.get(id)), api.portal.link(id)]);
     const activeContract = client.contracts.find((c) => isActive(c));
 
     return (
@@ -112,6 +113,14 @@ export default async function ClientPage({ params }: PageProps<'/clients/[id]'>)
                                 aside={<Badge {...INTERVENTION_STATUS[i.status]} />}
                             />
                         ))}
+                    </Card>
+
+                    <Card title="Espace client">
+                        <p className="muted" style={{ marginTop: 0 }}>
+                            Lien personnel permettant au client de suivre ses interventions, télécharger ses rapports et accepter ses devis. Il
+                            est inclus automatiquement dans les emails.
+                        </p>
+                        <PortalLink url={portal.url} clientId={client.id} />
                     </Card>
 
                     <Card title={`Devis (${client.quotes.length})`}>

@@ -155,6 +155,8 @@ model Client {
   phone       String?
   contactName String?
   createdAt   DateTime @default(now())
+  /// Version des liens du portail client : l'incrémenter révoque tous les liens existants
+  portalVersion Int    @default(1)
 
   sites         Site[]
   contracts     Contract[]
@@ -354,6 +356,9 @@ model Quote {
   validatedAt DateTime?
   sentAt      DateTime?
   decidedAt   DateTime?
+  /// Décision du client (portail) : nom du signataire et motif éventuel de refus
+  decisionBy   String?
+  decisionNote String?
 
   clientId       String
   interventionId String?

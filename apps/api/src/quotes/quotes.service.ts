@@ -7,6 +7,7 @@ import { zonedParts } from '../common/dates.js';
 import type { QuoteStatus } from '../common/domain.js';
 import { nextValue } from '../common/numbering.js';
 import { assertTransition, QUOTE_TRANSITIONS } from '../common/state-machine.js';
+import { PortalService } from '../portal/portal.module.js';
 import { PrismaService, type Tx } from '../prisma/prisma.service.js';
 import { computeBilling, quoteTotals, type BillableLine } from '../reports/billing.js';
 import { readParts } from '../reports/parts.js';
@@ -36,6 +37,7 @@ export class QuotesService {
         private readonly ai: AiService,
         private readonly catalog: CatalogService,
         private readonly clients: ClientsService,
+        private readonly portal: PortalService,
     ) {}
 
     async list(query: ListQuotesQuery) {
@@ -212,6 +214,7 @@ export class QuotesService {
             }
         }
 
+        const portal = to === 'SENT' ? await this.portal.link(quote.clientId) : '';
         await this.prisma.$transaction(async (tx) => {
             await tx.quote.update({ where: { id }, data: { status: to, ...extra } });
             await this.activity.log(
@@ -225,7 +228,7 @@ export class QuotesService {
                         recipient: quote.client.email,
                         subject: `Devis ${quote.number} — ${quote.title}`,
                         attachments: [{ kind: 'QUOTE_PDF', id }],
-                        body: `Bonjour,\n\nVeuillez trouver ci-joint notre devis ${quote.number} d'un montant de ${(totalTtcCents / 100).toFixed(2).replace('.', ',')} € TTC.\n\nCordialement,\nL'équipe maintenance`,
+                        body: `Bonjour,\n\nVeuillez trouver ci-joint notre devis ${quote.number} d'un montant de ${(totalTtcCents / 100).toFixed(2).replace('.', ',')} € TTC.\n\nVous pouvez l'accepter en ligne en quelques secondes :\n${portal}\n\nCordialement,\nL'équipe maintenance`,
                         entityType: 'QUOTE',
                         entityId: id,
                     },

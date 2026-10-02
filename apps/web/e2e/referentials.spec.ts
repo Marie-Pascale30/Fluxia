@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { acceptDialogs, expectToast, loginAs } from './helpers';
+import { acceptDialogs, createQuoteFromNewRequest, expectToast, loginAs } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -37,11 +37,8 @@ test('devis : les modifications non enregistrées sont enregistrées avant valid
     acceptDialogs(page);
     await loginAs(page, 'julien@fluxia.fr');
 
-    // Devis depuis la demande de chiffrage SCI Rivoli
-    await page.goto('/inbox');
-    await page.getByRole('link', { name: /remplacement moteur VMC/ }).click();
-    await page.getByRole('button', { name: /Préparer le devis/ }).click();
-    await page.waitForURL(/\/devis\//);
+    // Devis depuis une nouvelle demande de chiffrage
+    await createQuoteFromNewRequest(page);
 
     const firstQty = page.locator('table input[type="number"]').first();
     await firstQty.fill('2');

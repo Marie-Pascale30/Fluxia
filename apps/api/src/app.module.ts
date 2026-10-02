@@ -13,6 +13,7 @@ import { InterventionsModule } from './interventions/interventions.module.js';
 import { MessagingModule } from './messaging/messaging.module.js';
 import { PdfModule } from './pdf/pdf.module.js';
 import { PlanningModule } from './planning/planning.module.js';
+import { PortalModule } from './portal/portal.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { QuotesModule } from './quotes/quotes.module.js';
 import { ReportsModule } from './reports/reports.module.js';
@@ -53,6 +54,7 @@ class HealthController {
         MessagingModule,
         AttachmentsModule,
         PdfModule,
+        PortalModule,
     ],
     controllers: [HealthController],
 })

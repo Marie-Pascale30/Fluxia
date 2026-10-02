@@ -17,3 +17,14 @@ export async function expectToast(page: Page, text: string | RegExp) {
 
 /** Accepte automatiquement les boîtes de confirmation natives. */
 export const acceptDialogs = (page: Page) => page.on('dialog', (d) => d.accept());
+
+/** Nouvelle demande de chiffrage (SCI Rivoli) reçue puis transformée en devis brouillon. */
+export async function createQuoteFromNewRequest(page: Page) {
+    await page.goto('/inbox/nouvelle');
+    await page.getByRole('button', { name: 'Demande de devis' }).click();
+    await page.getByRole('button', { name: /Recevoir et analyser/ }).click();
+    await page.waitForURL(/\/inbox\/c/);
+    await page.getByRole('button', { name: /Préparer le devis/ }).click();
+    await page.waitForURL(/\/devis\//);
+    return page.url();
+}

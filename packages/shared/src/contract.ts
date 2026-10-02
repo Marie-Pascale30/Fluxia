@@ -343,6 +343,8 @@ export const Quote = z.object({
     validatedAt: date.nullable(),
     sentAt: date.nullable(),
     decidedAt: date.nullable(),
+    decisionBy: z.string().nullable(),
+    decisionNote: z.string().nullable(),
     clientId: id,
     client: Client,
     lines: z.array(QuoteLine),
@@ -381,6 +383,40 @@ export const Dashboard = z.object({
         messagesFailed: z.number().int(),
     }),
     activity: z.array(Activity),
+});
+
+// ─── Portail client (accès public par lien signé) ───────────────
+
+export const PortalSummary = z.object({
+    client: z.object({ name: z.string(), contactName: z.string().nullable() }),
+    interventions: z.array(
+        z.object({
+            id,
+            number: z.number().int(),
+            title: z.string(),
+            status: z.enum(D.INTERVENTION_STATUSES),
+            scheduledStart: date.nullable(),
+            scheduledEnd: date.nullable(),
+            technician: z.string().nullable(),
+            site: z.string(),
+            reportId: z.string().nullable(),
+        }),
+    ),
+    quotes: z.array(
+        z.object({
+            id,
+            number: z.string(),
+            title: z.string(),
+            status: z.enum(D.QUOTE_STATUSES),
+            sentAt: date.nullable(),
+            decidedAt: date.nullable(),
+            decisionBy: z.string().nullable(),
+            lines: z.array(z.object({ label: z.string(), quantity: z.number(), unitPriceCents: z.number().int() })),
+            totalHtCents: z.number().int(),
+            vatCents: z.number().int(),
+            totalTtcCents: z.number().int(),
+        }),
+    ),
 });
 
 /** Corps d'erreur renvoyé par l'API (NestJS). */

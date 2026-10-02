@@ -8,6 +8,7 @@ import type { ReportStatus } from '../common/domain.js';
 import { formatShortDateFr } from '../common/dates.js';
 import { assertTransition, REPORT_TRANSITIONS } from '../common/state-machine.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { PortalService } from '../portal/portal.module.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import { computeBilling } from './billing.js';
 import { partsJson, readParts } from './parts.js';
@@ -21,6 +22,7 @@ export class ReportsService {
         private readonly catalog: CatalogService,
         private readonly clients: ClientsService,
         private readonly quotes: QuotesService,
+        private readonly portal: PortalService,
     ) {}
 
     list() {
@@ -112,6 +114,7 @@ export class ReportsService {
         const report = await this.get(id);
         assertTransition(REPORT_TRANSITIONS, report.status as ReportStatus, 'SENT', 'Rapport (validez-le avant envoi)');
         const { intervention } = report;
+        const portal = await this.portal.link(intervention.clientId);
 
         await this.prisma.$transaction(async (tx) => {
             await tx.report.update({ where: { id }, data: { status: 'SENT', sentAt: new Date() } });
@@ -124,7 +127,7 @@ export class ReportsService {
                         recipient: intervention.client.email,
                         subject: `Rapport d'intervention #${intervention.number}`,
                         attachments: [{ kind: 'REPORT_PDF', id }],
-                        body: `Bonjour,\n\nVeuillez trouver ci-joint le rapport de l'intervention du ${formatShortDateFr(report.createdAt)}.\n\nDiagnostic : ${report.diagnosis}\nTravaux : ${report.workDone}\nRésultat : ${report.result}${report.recommendation ? `\nRecommandation : ${report.recommendation}` : ''}\n\nCordialement,\nL'équipe maintenance`,
+                        body: `Bonjour,\n\nVeuillez trouver ci-joint le rapport de l'intervention du ${formatShortDateFr(report.createdAt)}.\n\nDiagnostic : ${report.diagnosis}\nTravaux : ${report.workDone}\nRésultat : ${report.result}${report.recommendation ? `\nRecommandation : ${report.recommendation}` : ''}\n\nRetrouvez tous vos documents sur votre espace client :\n${portal}\n\nCordialement,\nL'équipe maintenance`,
                         entityType: 'REPORT',
                         entityId: id,
                     },

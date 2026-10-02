@@ -37,6 +37,8 @@ test('parcours du responsable puis du technicien', async ({ page, browser }) => 
     await page.getByRole('button', { name: /Envoyer la mission/ }).click();
     await expectToast(page, 'Mission envoyée');
     const interventionUrl = page.url();
+    // Lien vers la vue terrain au jour de la mission (le créneau dépend de l'heure d'exécution)
+    const fieldUrl = (await page.getByRole('link', { name: /Ouvrir la vue technicien/ }).getAttribute('href'))!;
 
     // 3. Le technicien se connecte dans une autre session et rédige son compte rendu
     const techContext = await browser.newContext();
@@ -49,12 +51,8 @@ test('parcours du responsable puis du technicien', async ({ page, browser }) => 
 
     await tech.goto(interventionUrl);
     await expect(tech).toHaveURL(/\/techniciens\//);
+    await tech.goto(fieldUrl);
     const mission = tech.locator('.card', { has: tech.getByRole('heading', { name: 'Restaurant Le Parisien' }) });
-    // La mission peut être planifiée un autre jour : navigation jusqu'à elle
-    for (let i = 0; i < 5 && !(await mission.count()); i++) {
-        await tech.getByRole('link', { name: '→' }).click();
-        await tech.waitForLoadState('networkidle');
-    }
     await mission.getByRole('button', { name: 'Exemple' }).click();
     await mission.getByRole('button', { name: /Générer le rapport/ }).click();
     await tech.waitForURL(/\/rapports\//);

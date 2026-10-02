@@ -471,3 +471,12 @@ export async function transcribeAudio(interventionId: string, form: FormData) {
         return { message: 'Enregistrement transcrit', data: { text } };
     });
 }
+
+// ─── Portail client ─────────────────────────────────────────────
+
+export async function rotatePortalLink(clientId: string) {
+    return run(async () => {
+        await api.portal.rotate(clientId);
+        return 'Nouveau lien généré : les anciens liens ne fonctionnent plus';
+    });
+}

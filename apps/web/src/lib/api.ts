@@ -19,6 +19,7 @@ import type {
     MessageLog,
     MessageStatus,
     PlanningDay,
+    PortalSummary,
     Quote,
     QuoteDetail,
     QuoteStatus,
@@ -154,6 +155,19 @@ export const api = {
     },
 
     capabilities: () => get<Capabilities>('/capabilities'),
+
+    /** Portail client : appels anonymes, l'accès repose sur le lien signé. */
+    portal: {
+        summary: (token: string) => request<PortalSummary>(`/portal/${encodeURIComponent(token)}`, { anonymous: true }),
+        decide: (token: string, quoteId: string, data: { accept: boolean; name: string; note?: string }) =>
+            request<PortalSummary>(`/portal/${encodeURIComponent(token)}/quotes/${quoteId}/decision`, {
+                method: 'POST',
+                body: JSON.stringify(data),
+                anonymous: true,
+            }),
+        link: (clientId: string) => get<{ url: string }>(`/clients/${clientId}/portal-link`),
+        rotate: (clientId: string) => post<{ url: string }>(`/clients/${clientId}/portal-link/rotate`),
+    },
 
     planning: (date?: string) => get<PlanningDay>(`/planning${qs({ date })}`),
 

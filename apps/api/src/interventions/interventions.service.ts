@@ -10,6 +10,7 @@ import { WORKDAY, type ActivityActor, type InterventionStatus } from '../common/
 import { partsJson, readParts } from '../reports/parts.js';
 import { assertTransition, INTERVENTION_TRANSITIONS } from '../common/state-machine.js';
 import { PlanningService } from '../planning/planning.service.js';
+import { PortalService } from '../portal/portal.module.js';
 import { PrismaService, type Tx } from '../prisma/prisma.service.js';
 import { computeBilling } from '../reports/billing.js';
 import type {
@@ -40,6 +41,7 @@ export class InterventionsService {
         private readonly clients: ClientsService,
         private readonly ai: AiService,
         private readonly catalog: CatalogService,
+        private readonly portal: PortalService,
     ) {}
 
     list(query: ListInterventionsQuery) {
@@ -195,6 +197,7 @@ export class InterventionsService {
             const i = await this.transition(id, 'DISPATCHED', tx);
             const tech = i.technician!;
             const when = `${formatDateFr(i.scheduledStart!)} à ${formatTimeFr(i.scheduledStart!)}`;
+            const portal = await this.portal.link(i.clientId);
 
             await this.activity.sendMessage(
                 {
@@ -212,7 +215,7 @@ export class InterventionsService {
                     {
                         recipient: i.client.email,
                         subject: `Confirmation d'intervention #${i.number}`,
-                        body: `Bonjour,\n\nNous vous confirmons le passage de ${tech.firstName} ${when} pour : ${i.title}.\n\nCordialement,\nL'équipe maintenance`,
+                        body: `Bonjour,\n\nNous vous confirmons le passage de ${tech.firstName} ${when} pour : ${i.title}.\n\nSuivez vos interventions et documents sur votre espace client :\n${portal}\n\nCordialement,\nL'équipe maintenance`,
                         entityType: 'INTERVENTION',
                         entityId: id,
                     },

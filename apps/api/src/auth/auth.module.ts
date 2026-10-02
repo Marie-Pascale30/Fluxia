@@ -4,7 +4,6 @@ import {
     Get,
     HttpCode,
     Injectable,
-    Logger,
     Module,
     Post,
     UnauthorizedException,
@@ -14,6 +13,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Throttle, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { IsEmail, IsString, MinLength } from 'class-validator';
+import { appSecret } from '../common/secrets.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthGuard, RequestContextInterceptor } from './auth.guard.js';
 import type { AuthUser, JwtPayload } from './auth.types.js';
@@ -27,13 +27,6 @@ class LoginDto {
 
 const SESSION_HOURS = 12;
 
-function jwtSecret(): string {
-    const secret = process.env.JWT_SECRET;
-    if (secret && secret.length >= 32) return secret;
-    if (process.env.NODE_ENV === 'production') throw new Error('JWT_SECRET (32 caractères minimum) est obligatoire en production');
-    new Logger('Auth').warn('JWT_SECRET absent ou trop court : clé de développement utilisée');
-    return 'fluxia-dev-secret-ne-pas-utiliser-en-production';
-}
 
 @Injectable()
 export class AuthService {
@@ -84,7 +77,7 @@ class AuthController {
     imports: [
         JwtModule.registerAsync({
             global: true,
-            useFactory: () => ({ secret: jwtSecret(), signOptions: { expiresIn: `${SESSION_HOURS}h` } }),
+            useFactory: () => ({ secret: appSecret(), signOptions: { expiresIn: `${SESSION_HOURS}h` } }),
         }),
         ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     ],

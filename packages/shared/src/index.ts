@@ -41,3 +41,4 @@ export type ReplyDraft = z.infer<typeof C.ReplyDraft>;
 export type MessageLog = z.infer<typeof C.MessageLog>;
 export type Attachment = z.infer<typeof C.Attachment>;
 export type Capabilities = z.infer<typeof C.Capabilities>;
+export type PortalSummary = z.infer<typeof C.PortalSummary>;
