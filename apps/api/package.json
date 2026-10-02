@@ -20,7 +20,8 @@
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "db:studio": "prisma studio",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "test:e2e": "vitest run --config vitest.config.e2e.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.130.0",
@@ -33,7 +34,8 @@
     "class-validator": "^0.15.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@fluxia/shared": "*"
   },
   "devDependencies": {
     "@nestjs/cli": "^12.0.0",

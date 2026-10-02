@@ -1,0 +1,24 @@
+{
+  "name": "@fluxia/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vocabulaire métier et contrat d'API (schémas Zod) partagés entre apps/api et apps/web",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}
