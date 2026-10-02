@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { dispatchMission, unassignIntervention } from '@/app/actions';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { ActivityTimeline, Badge, Card, Field, KeyValue, Notice, PageHeader, Stepper } from '@/components/ui';
+import { MessageList } from '@/components/ui/MessageList';
 import { CancelForm } from '@/features/interventions/CancelForm';
 import { ManualAssignForm } from '@/features/interventions/ManualAssignForm';
 import { Recommendations } from '@/features/interventions/Recommendations';
@@ -148,16 +149,7 @@ export default async function InterventionPage({ params }: PageProps<'/intervent
                     )}
 
                     <Card title="Messages envoyés">
-                        {i.messages.length === 0 && <div className="muted">Aucun message pour l&apos;instant.</div>}
-                        {i.messages.map((m) => (
-                            <details key={m.id} className="row" style={{ display: 'block' }}>
-                                <summary>
-                                    {m.channel === 'PUSH' ? '📱' : '✉'} {m.subject}
-                                    <span className="muted small"> — {m.recipient} · {formatDateTime(m.createdAt)}</span>
-                                </summary>
-                                <div className="email-body mt">{m.body}</div>
-                            </details>
-                        ))}
+                        <MessageList messages={i.messages} />
                     </Card>
                 </div>
             </div>

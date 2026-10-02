@@ -9,6 +9,7 @@ import { ClientsModule } from './clients/clients.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { GeoModule } from './geo/geo.service.js';
 import { InterventionsModule } from './interventions/interventions.module.js';
+import { MessagingModule } from './messaging/messaging.module.js';
 import { PlanningModule } from './planning/planning.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { QuotesModule } from './quotes/quotes.module.js';
@@ -45,6 +46,7 @@ class HealthController {
         ReportsModule,
         RequestsModule,
         DashboardModule,
+        MessagingModule,
     ],
     controllers: [HealthController],
 })

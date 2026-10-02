@@ -2,7 +2,7 @@ import { execSync, spawn, type ChildProcess } from 'node:child_process';
 
 // Avant la suite : schéma à jour, données de démo, puis démarrage de l'API compilée
 // (exactement comme en production) sur un port dédié. Les tests l'interrogent en HTTP.
-export const E2E_PORT = Number(process.env.E2E_API_PORT ?? 4100);
+export const E2E_PORT = Number(process.env.E2E_API_PORT ?? 4610);
 
 async function isUp() {
     try {
@@ -14,7 +14,7 @@ async function isUp() {
 
 export default async function setup() {
     if (await isUp()) {
-        throw new Error(`Le port ${E2E_PORT} est déjà utilisé (ancienne API de test ?). Arrêtez-la ou définissez E2E_API_PORT.`);
+        throw new Error(`Le port ${E2E_PORT} est déjà utilisé (autre projet ou ancienne API de test). Libérez-le ou définissez E2E_API_PORT.`);
     }
 
     const env = {
@@ -24,6 +24,11 @@ export default async function setup() {
         APP_TIMEZONE: 'Europe/Paris',
         AI_PROVIDER: 'heuristic',
         GEOCODER: 'none',
+        INBOUND_EMAIL_TOKEN: 'test-inbound-token',
+        OUTBOX_INTERVAL_MS: '200',
+        SMTP_URL: '',
+        TWILIO_ACCOUNT_SID: '',
+        IMAP_URL: '',
         ANTHROPIC_API_KEY: '',
         PORT: String(E2E_PORT),
     };

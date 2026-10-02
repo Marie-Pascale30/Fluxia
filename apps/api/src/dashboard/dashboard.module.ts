@@ -26,6 +26,7 @@ class DashboardService {
             reportsPending,
             quotesDraft,
             quotesSent,
+            messagesFailed,
             activity,
         ] = await Promise.all([
             this.prisma.inboundRequest.count({ where: { receivedAt: today } }),
@@ -37,6 +38,7 @@ class DashboardService {
             this.prisma.report.count({ where: { status: { in: ['DRAFT', 'VALIDATED'] } } }),
             this.prisma.quote.count({ where: { status: { in: ['DRAFT', 'VALIDATED'] } } }),
             this.prisma.quote.count({ where: { status: 'SENT' } }),
+            this.prisma.outboundMessage.count({ where: { status: 'FAILED' } }),
             this.activity.recent(8),
         ]);
 
@@ -52,6 +54,7 @@ class DashboardService {
                 reportsPending,
                 quotesDraft,
                 quotesSent,
+                messagesFailed,
             },
             activity,
         };

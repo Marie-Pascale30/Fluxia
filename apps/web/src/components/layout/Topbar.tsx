@@ -17,6 +17,7 @@ const LABELS: Record<string, string> = {
     clients: 'Clients',
     catalogue: 'Catalogue',
     parametres: 'Paramètres',
+    envois: 'Envois',
 };
 
 export function Topbar({ user }: { user: { name: string; initials: string; role: 'MANAGER' | 'TECHNICIAN' } }) {

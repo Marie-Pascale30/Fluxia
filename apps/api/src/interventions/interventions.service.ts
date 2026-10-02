@@ -218,11 +218,25 @@ export class InterventionsService {
                     tx,
                 );
             }
+            if (i.client.phone) {
+                await this.activity.sendMessage(
+                    {
+                        channel: 'SMS',
+                        recipient: i.client.phone,
+                        subject: `Intervention #${i.number}`,
+                        body: `${i.client.name} : passage de ${tech.firstName} ${when} (intervention n°${i.number}). Pour toute question, répondez à notre email de confirmation.`,
+                        entityType: 'INTERVENTION',
+                        entityId: id,
+                    },
+                    tx,
+                );
+            }
+            const informed = [i.client.email && 'email', i.client.phone && 'SMS'].filter(Boolean).join(' et ');
             await this.activity.log(
                 {
                     actor: 'USER',
                     type: 'MISSION_DISPATCHED',
-                    message: `Mission envoyée à ${tech.firstName}${i.client.email ? ', client informé par email' : ''}`,
+                    message: `Mission envoyée à ${tech.firstName}${informed ? `, client informé par ${informed}` : ''}`,
                     entityType: 'INTERVENTION',
                     entityId: id,
                 },

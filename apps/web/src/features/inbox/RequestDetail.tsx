@@ -11,7 +11,6 @@ import {
     CATEGORY,
     EQUIPMENT,
     formatDateTime,
-    formatRelative,
     INTERVENTION_STATUS,
     PRIORITY,
     providerLabel,
@@ -22,6 +21,7 @@ import type { ClientSummary, InboundRequestDetail } from '@/lib/types';
 import { CorrectionForm } from './CorrectionForm';
 import { CreateClientForm } from './CreateClientForm';
 import { ReplyComposer } from './ReplyComposer';
+import { MessageList } from '@/components/ui/MessageList';
 
 function coverageLabel(r: InboundRequestDetail) {
     if (!r.client) return '—';
@@ -142,14 +142,7 @@ export function RequestDetail({ request: r, clients }: { request: InboundRequest
             {r.status !== 'ARCHIVED' && (
                 <div className="mt">
                     <div className="label">Répondre au client</div>
-                    {r.replies.map((m) => (
-                        <details key={m.id} className="mt">
-                            <summary>
-                                ✉ {m.subject} <span className="muted small">— envoyé {formatRelative(m.createdAt)}</span>
-                            </summary>
-                            <div className="email-body mt">{m.body}</div>
-                        </details>
-                    ))}
+                    {r.replies.length > 0 && <MessageList messages={r.replies} />}
                     <div className="actions" style={{ marginTop: 10 }}>
                         <ReplyComposer requestId={r.id} recipient={r.fromEmail} />
                     </div>

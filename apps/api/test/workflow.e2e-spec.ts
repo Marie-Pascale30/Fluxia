@@ -81,7 +81,7 @@ describe('Parcours métier', () => {
         expect((await call('POST', `/interventions/${ctx.interventionId}/dispatch`)).status).toBe(200);
         const detail = expectContract(S.InterventionDetail, (await call('GET', `/interventions/${ctx.interventionId}`)).body);
         expect(detail.status).toBe('DISPATCHED');
-        expect(detail.messages.map((m) => m.channel).sort()).toEqual(['EMAIL', 'PUSH']);
+        expect(detail.messages.map((m) => m.channel).sort()).toEqual(['EMAIL', 'PUSH', 'SMS']);
     });
 
     it('génère le rapport depuis le compte rendu et détecte la facturation', async () => {

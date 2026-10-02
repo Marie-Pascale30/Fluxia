@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { quoteTransition } from '@/app/actions';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { ActivityTimeline, Badge, Card, KeyValue, Notice, PageHeader } from '@/components/ui';
+import { MessageList } from '@/components/ui/MessageList';
 import { QuoteEditor } from '@/features/quotes/QuoteEditor';
 import { api } from '@/lib/api';
 import { orNotFound } from '@/lib/data';
@@ -136,12 +137,11 @@ export default async function QuotePage({ params }: PageProps<'/devis/[id]'>) {
 
                     <Card title="Historique">
                         <ActivityTimeline items={q.timeline} />
-                        {q.messages.map((m) => (
-                            <details key={m.id} className="mt">
-                                <summary>✉ {m.subject}</summary>
-                                <div className="email-body mt">{m.body}</div>
-                            </details>
-                        ))}
+                        {q.messages.length > 0 && (
+                            <div className="mt">
+                                <MessageList messages={q.messages} />
+                            </div>
+                        )}
                     </Card>
                 </div>
             </div>

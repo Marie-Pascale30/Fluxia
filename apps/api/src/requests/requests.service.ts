@@ -94,10 +94,17 @@ export class RequestsService {
         return { ...request, coverage, replies: messages };
     }
 
-    /** Réception d'une demande (email, formulaire…) : elle est analysée immédiatement. */
-    async ingest(dto: IngestRequestDto) {
+    /**
+     * Réception d'une demande (email, formulaire…) : elle est analysée immédiatement.
+     * `externalId` (Message-ID) rend la réception idempotente : un même email n'est importé qu'une fois.
+     */
+    async ingest(dto: IngestRequestDto, externalId?: string) {
+        if (externalId) {
+            const existing = await this.prisma.inboundRequest.findUnique({ where: { externalId } });
+            if (existing) return this.findOne(existing.id);
+        }
         const request = await this.prisma.inboundRequest.create({
-            data: { ...dto, channel: dto.channel ?? 'EMAIL' },
+            data: { ...dto, channel: dto.channel ?? 'EMAIL', externalId },
         });
         await this.activity.log({
             actor: 'SYSTEM',

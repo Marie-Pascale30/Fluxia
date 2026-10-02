@@ -423,3 +423,12 @@ export async function updateCatalogItem(id: string, _: ActionResult | null, form
         return 'Article mis à jour';
     });
 }
+
+// ─── Envois ─────────────────────────────────────────────────────
+
+export async function retryMessage(id: string) {
+    return run(async () => {
+        await api.messages.retry(id);
+        return 'Nouvel envoi programmé';
+    });
+}

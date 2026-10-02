@@ -17,6 +17,7 @@ async function loadNav(user: SessionUser): Promise<{ counters: NavCounters | nul
                 toSchedule: counters.toSchedule,
                 reports: counters.reportsPending,
                 quotes: counters.quotesDraft,
+                failedMessages: counters.messagesFailed,
             },
         };
     } catch {

@@ -10,6 +10,7 @@ export interface NavCounters {
     toSchedule: number;
     reports: number;
     quotes: number;
+    failedMessages: number;
 }
 
 const SECTIONS = [
@@ -35,6 +36,7 @@ const SECTIONS = [
             { href: '/devis', label: 'Devis', icon: '€', badge: 'quotes' },
             { href: '/clients', label: 'Clients', icon: '⌂' },
             { href: '/catalogue', label: 'Catalogue', icon: '☰' },
+            { href: '/envois', label: 'Envois', icon: '➤', badge: 'failedMessages' },
         ],
     },
 ] as const;

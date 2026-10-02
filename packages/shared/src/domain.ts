@@ -21,6 +21,7 @@ export const QUOTE_STATUSES = ['DRAFT', 'VALIDATED', 'SENT', 'ACCEPTED', 'REFUSE
 export const QUOTE_LINE_KINDS = ['PART', 'LABOR', 'TRAVEL', 'OTHER'] as const;
 export const ACTIVITY_ACTORS = ['AI', 'USER', 'TECHNICIAN', 'SYSTEM'] as const;
 export const MESSAGE_CHANNELS = ['EMAIL', 'SMS', 'PUSH'] as const;
+export const MESSAGE_STATUSES = ['PENDING', 'SENT', 'FAILED'] as const;
 
 export type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
 export type Priority = (typeof PRIORITIES)[number];
@@ -35,3 +36,4 @@ export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
 export type QuoteLineKind = (typeof QUOTE_LINE_KINDS)[number];
 export type Actor = (typeof ACTIVITY_ACTORS)[number];
 export type MessageChannel = (typeof MESSAGE_CHANNELS)[number];
+export type MessageStatus = (typeof MESSAGE_STATUSES)[number];

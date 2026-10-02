@@ -76,5 +76,6 @@ class RequestsController {
 @Module({
     controllers: [RequestsController],
     providers: [RequestsService],
+    exports: [RequestsService],
 })
 export class RequestsModule {}

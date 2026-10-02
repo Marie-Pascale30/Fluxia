@@ -18,9 +18,11 @@ export interface OutboundInput {
     entityType: string;
     entityId: string;
     channel?: 'EMAIL' | 'SMS' | 'PUSH';
+    /** Pièces jointes générées à l'envoi (ex. { kind: 'REPORT_PDF', id }) */
+    attachments?: { kind: string; id: string }[];
 }
 
-/** Traçabilité : journal d'audit + messages sortants (simulés, jamais réellement envoyés). */
+/** Traçabilité : journal d'audit + messages sortants (mis en boîte d'envoi, expédiés par OutboxService). */
 @Injectable()
 export class ActivityService {
     constructor(private readonly prisma: PrismaService) {}

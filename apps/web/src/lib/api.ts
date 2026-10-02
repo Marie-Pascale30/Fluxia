@@ -14,6 +14,8 @@ import type {
     Intervention,
     InterventionDetail,
     InterventionStatus,
+    MessageLog,
+    MessageStatus,
     PlanningDay,
     Quote,
     QuoteDetail,
@@ -180,6 +182,11 @@ export const api = {
         deleteEquipment: (id: string) => del<unknown>(`/equipments/${id}`),
         addContract: (id: string, data: object) => post<unknown>(`/clients/${id}/contracts`, data),
         updateContract: (id: string, data: object) => patch<unknown>(`/contracts/${id}`, data),
+    },
+
+    messages: {
+        list: (status?: MessageStatus) => get<MessageLog>(`/messages${qs({ status })}`),
+        retry: (id: string) => post<unknown>(`/messages/${id}/retry`),
     },
 
     catalog: () => get<CatalogItem[]>('/catalog'),

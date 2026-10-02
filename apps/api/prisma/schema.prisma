@@ -115,6 +115,12 @@ enum MessageChannel {
   PUSH
 }
 
+enum MessageStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 // ─── Utilisateurs ────────────────────────────────────────────────
 
 model User {
@@ -229,6 +235,8 @@ model InboundRequest {
   subject     String
   body        String
   receivedAt  DateTime       @default(now())
+  /// Identifiant du message d'origine (Message-ID) : évite les doublons
+  externalId  String?        @unique
   status      RequestStatus  @default(NEW)
   attachments Int            @default(0)
 
@@ -379,17 +387,31 @@ model Activity {
 }
 
 /// Messages sortants (emails clients, missions techniciens, SMS).
+/// Boîte d'envoi : créés en PENDING dans la transaction métier, puis expédiés
+/// en arrière-plan avec nouvelles tentatives (OutboxService).
 model OutboundMessage {
-  id         String         @id @default(cuid())
-  createdAt  DateTime       @default(now())
-  channel    MessageChannel @default(EMAIL)
-  recipient  String
-  subject    String
-  body       String
-  entityType String
-  entityId   String
+  id          String         @id @default(cuid())
+  createdAt   DateTime       @default(now())
+  channel     MessageChannel @default(EMAIL)
+  recipient   String
+  subject     String
+  body        String
+  entityType  String
+  entityId    String
+  /// Pièces jointes générées à l'envoi : [{ kind: "REPORT_PDF" | "QUOTE_PDF", id }]
+  attachments Json           @default("[]")
+
+  status      MessageStatus  @default(PENDING)
+  attempts    Int            @default(0)
+  nextAttemptAt DateTime     @default(now())
+  lastError   String?
+  /// Transport utilisé : smtp, twilio, log (simulation)…
+  transport   String?
+  providerId  String?
+  sentAt      DateTime?
 
   @@index([entityId])
+  @@index([status, nextAttemptAt])
 }
 
 /// Compteurs de numérotation (interventions, devis…) incrémentés atomiquement.

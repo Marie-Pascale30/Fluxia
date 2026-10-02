@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-const BASE = `http://localhost:${process.env.E2E_API_PORT ?? 4100}/api`;
+const BASE = `http://localhost:${process.env.E2E_API_PORT ?? 4610}/api`;
 
 export interface Res<T = any> {
     status: number;
@@ -24,12 +24,12 @@ export async function call<T = any>(
     method: string,
     path: string,
     body?: unknown,
-    options: { token?: string | null } = {},
+    options: { token?: string | null; headers?: Record<string, string> } = {},
 ): Promise<Res<T>> {
     const token = options.token === undefined ? session : options.token;
     const res = await fetch(BASE + path, {
         method,
-        headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}), ...options.headers },
         body: body === undefined ? undefined : JSON.stringify(body),
     });
     return { status: res.status, body: (await res.json().catch(() => null)) as T };

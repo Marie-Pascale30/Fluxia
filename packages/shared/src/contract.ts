@@ -107,6 +107,17 @@ export const OutboundMessage = z.object({
     recipient: z.string(),
     subject: z.string(),
     body: z.string(),
+    status: z.enum(D.MESSAGE_STATUSES),
+    attempts: z.number().int(),
+    lastError: z.string().nullable(),
+    transport: z.string().nullable(),
+    sentAt: date.nullable(),
+});
+
+export const MessageLog = z.object({
+    transports: z.object({ email: z.string(), sms: z.string() }),
+    counts: z.record(z.string(), z.number().int()),
+    messages: z.array(OutboundMessage.extend({ entityType: z.string(), entityId: z.string() })),
 });
 
 // ─── Interventions ───────────────────────────────────────────────
@@ -350,6 +361,7 @@ export const Dashboard = z.object({
         reportsPending: z.number().int(),
         quotesDraft: z.number().int(),
         quotesSent: z.number().int(),
+        messagesFailed: z.number().int(),
     }),
     activity: z.array(Activity),
 });
