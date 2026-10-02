@@ -34,6 +34,7 @@ const SECTIONS = [
             { href: '/rapports', label: 'Rapports', icon: '▤', badge: 'reports' },
             { href: '/devis', label: 'Devis', icon: '€', badge: 'quotes' },
             { href: '/clients', label: 'Clients', icon: '⌂' },
+            { href: '/catalogue', label: 'Catalogue', icon: '☰' },
         ],
     },
 ] as const;

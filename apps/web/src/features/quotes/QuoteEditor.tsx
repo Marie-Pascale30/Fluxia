@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
-import { saveQuote } from '@/app/actions';
+import { quoteTransition, saveQuote } from '@/app/actions';
 import { useToast } from '@/components/ui/Toast';
 import { formatMoney, LINE_KIND } from '@/lib/format';
 import type { CatalogItem, QuoteDetail, QuoteLineKind } from '@/lib/types';
@@ -24,9 +24,11 @@ export function QuoteEditor({ quote, catalog }: { quote: QuoteDetail; catalog: C
     const toast = useToast();
     const router = useRouter();
     const [pending, startTransition] = useTransition();
-    const [title, setTitle] = useState(quote.title);
-    const [notes, setNotes] = useState(quote.notes ?? '');
-    const [lines, setLines] = useState<EditableLine[]>(() =>
+    // Modifications non enregistrées : la validation les enregistre d'abord
+    const [dirty, setDirty] = useState(false);
+    const [title, setTitleState] = useState(quote.title);
+    const [notes, setNotesState] = useState(quote.notes ?? '');
+    const [lines, setLinesState] = useState<EditableLine[]>(() =>
         quote.lines.map((l) => ({
             key: nextKey++,
             kind: l.kind,
@@ -36,6 +38,13 @@ export function QuoteEditor({ quote, catalog }: { quote: QuoteDetail; catalog: C
             catalogCode: l.catalogCode ?? undefined,
         })),
     );
+
+    const touch = () => setDirty(true);
+    const setTitle = (v: string) => (touch(), setTitleState(v));
+    const setNotes = (v: string) => (touch(), setNotesState(v));
+    const setLines: typeof setLinesState = (v) => (touch(), setLinesState(v));
+
+    const missingPrice = lines.some((l) => toCents(l.unitPrice) === 0);
 
     const totals = useMemo(() => {
         const ht = lines.reduce((sum, l) => sum + Math.round(l.quantity * toCents(l.unitPrice)), 0);
@@ -55,9 +64,8 @@ export function QuoteEditor({ quote, catalog }: { quote: QuoteDetail; catalog: C
         ]);
     };
 
-    const save = () =>
-        startTransition(async () => {
-            const result = await saveQuote(quote.id, {
+    const persist = () =>
+        saveQuote(quote.id, {
                 title,
                 notes,
                 lines: lines.map((l) => ({
@@ -65,11 +73,31 @@ export function QuoteEditor({ quote, catalog }: { quote: QuoteDetail; catalog: C
                     label: l.label,
                     quantity: l.quantity,
                     unitPriceCents: toCents(l.unitPrice),
-                    catalogCode: l.catalogCode,
-                })),
-            });
-            toast(result.message, result.ok ? 'info' : 'error');
-            if (result.ok) router.refresh();
+                catalogCode: l.catalogCode,
+            })),
+        });
+
+    const save = () =>
+        startTransition(async () => {
+            const result = await persist();
+            if (!result.ok) toast(result.message, 'error');
+            if (result.ok) {
+                setDirty(false);
+                router.refresh();
+            }
+        });
+
+    /** Enregistre d'abord les modifications en cours, puis valide la version enregistrée. */
+    const saveAndValidate = () =>
+        startTransition(async () => {
+            if (dirty) {
+                const saved = await persist();
+                if (!saved.ok) return toast(saved.message, 'error');
+                setDirty(false);
+            }
+            const result = await quoteTransition(quote.id, 'validate');
+            if (!result.ok) toast(result.message, 'error');
+            router.refresh();
         });
 
     return (
@@ -174,10 +202,20 @@ export function QuoteEditor({ quote, catalog }: { quote: QuoteDetail; catalog: C
                 <textarea className="textarea" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </label>
 
-            <div>
-                <button type="button" className="btn" onClick={save} disabled={pending || lines.length === 0}>
-                    {pending ? 'Enregistrement…' : 'Enregistrer le brouillon'}
+            <div className="row-flex">
+                <button type="button" className="btn light" onClick={save} disabled={pending || !dirty || lines.length === 0}>
+                    Enregistrer le brouillon
                 </button>
+                <button
+                    type="button"
+                    className="btn green"
+                    onClick={saveAndValidate}
+                    disabled={pending || lines.length === 0 || missingPrice}
+                    title={missingPrice ? 'Complétez les prix manquants' : undefined}
+                >
+                    {pending ? 'Patientez…' : dirty ? 'Enregistrer et valider' : 'Valider le devis'}
+                </button>
+                {dirty && <span className="dirty-hint">● Modifications non enregistrées</span>}
             </div>
         </div>
     );

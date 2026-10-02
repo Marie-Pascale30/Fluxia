@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useTransition, type ReactNode } from 'react';
 import type { ActionResult } from '@/app/actions';
 import { useToast } from './Toast';
@@ -17,20 +16,17 @@ interface Props {
     title?: string;
 }
 
-/** Bouton qui exécute une Server Action, affiche le résultat en toast et suit une éventuelle redirection. */
+/** Bouton qui exécute une Server Action ; les erreurs s'affichent en toast. */
 export function ActionButton({ action, children, pendingLabel, variant, size, confirm, disabled, title }: Props) {
     const [pending, startTransition] = useTransition();
     const toast = useToast();
-    const router = useRouter();
 
     const onClick = () => {
         if (confirm && !window.confirm(confirm)) return;
         startTransition(async () => {
             const result = await action();
-            // Pas de résultat : l'action a redirigé (message transmis par FlashToast)
-            if (!result) return;
-            toast(result.message, result.ok ? 'info' : 'error');
-            if (result.ok && result.redirectTo) router.push(result.redirectTo);
+            // Succès : message affiché par FlashToast ; redirection gérée côté serveur
+            if (result && !result.ok) toast(result.message, 'error');
         });
     };
 

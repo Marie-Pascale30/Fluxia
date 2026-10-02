@@ -15,9 +15,9 @@ export class TechniciansService {
     constructor(private readonly prisma: PrismaService) {}
 
     /** Liste avec la charge du jour (nombre d'interventions et minutes planifiées). */
-    async findAll(day = new Date()) {
+    async findAll(day = new Date(), includeInactive = false) {
         const technicians = await this.prisma.technician.findMany({
-            where: { active: true },
+            where: includeInactive ? {} : { active: true },
             orderBy: { firstName: 'asc' },
             include: {
                 interventions: {

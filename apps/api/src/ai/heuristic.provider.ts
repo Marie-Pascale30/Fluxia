@@ -3,6 +3,8 @@ import type {
     AiProvider,
     AnalyzeRequestInput,
     CatalogEntry,
+    DraftReplyInput,
+    ReplyDraft,
     DraftReportInput,
     QuoteSuggestion,
     ReportDraft,
@@ -42,6 +44,20 @@ const SYMPTOM_PATTERNS: [RegExp, string][] = [
     [/ne (demarre|s'allume) (plus|pas)/, 'Ne démarre plus'],
     [/(disjonct|coupe)/, 'Coupures / disjonctions'],
 ];
+
+const PHONE = /(?:\+33\s?|\b0)[1-9](?:[\s.-]?\d{2}){4}\b/;
+const STREET =
+    /\b\d{1,4}(?:\s?(?:bis|ter))?,?\s+(?:rue|avenue|av\.?|boulevard|bd|place|chemin|allée|impasse|quai|cours|route)\b[^,\n.]{2,60}(?:,?\s*\d{5}\s+[A-ZÉÈa-zéèêàç' -]{2,40}[A-Za-zéè])?/i;
+const CITY_DISTRICT = /\b(Paris|Lyon|Marseille)\s+(\d{1,2})(?:e|er|ème)\b/i;
+
+/** Téléphone et adresse cités dans un message libre. */
+export function extractContact(text: string): { phone: string | null; address: string | null } {
+    const phone = PHONE.exec(text)?.[0].replace(/[.-]/g, ' ').replace(/\s+/g, ' ').trim() ?? null;
+    const street = STREET.exec(text)?.[0].trim();
+    const district = CITY_DISTRICT.exec(text);
+    const address = street ?? (district ? `${district[1]} ${district[2]}e` : null);
+    return { phone, address };
+}
 
 function sentences(text: string): string[] {
     return text
@@ -108,8 +124,11 @@ export class HeuristicProvider implements AiProvider {
         if (priority === 'URGENT') summaryParts.push('intervention rapide demandée');
 
         const signals = [isBreakdown, isQuote, isMaintenance, equipmentType !== null].filter(Boolean).length;
+        const contact = extractContact(`${input.subject}\n${input.body}`);
 
         return {
+            contactPhone: contact.phone,
+            contactAddress: contact.address,
             category,
             priority,
             summary: `${summaryParts.join(' — ')}.`,
@@ -166,6 +185,29 @@ export class HeuristicProvider implements AiProvider {
             parts,
             laborHours,
         };
+    }
+
+    async draftReply(input: DraftReplyInput): Promise<ReplyDraft> {
+        const opening: Record<string, string> = {
+            BREAKDOWN: 'Nous avons bien reçu votre signalement de panne et le prenons en charge.',
+            QUOTE_REQUEST: 'Nous avons bien reçu votre demande de chiffrage et la préparons.',
+            MAINTENANCE: "Nous avons bien reçu votre demande d'entretien.",
+            OTHER: 'Nous avons bien reçu votre message.',
+        };
+        const lines = [
+            `Bonjour ${input.fromName.split(' ')[0]},`,
+            '',
+            opening[input.category ?? 'OTHER'],
+            ...input.facts.map((f) => `• ${f}`),
+            '',
+            input.facts.length
+                ? 'Nous restons à votre disposition pour toute question.'
+                : 'Nous revenons vers vous très rapidement pour vous proposer une solution.',
+            '',
+            'Cordialement,',
+            input.signature,
+        ];
+        return { subject: `Re: ${input.subject.replace(/^(re|tr|fwd?)\s*:\s*/i, '')}`, body: lines.join('\n') };
     }
 
     async suggestQuote(input: SuggestQuoteInput): Promise<QuoteSuggestion> {

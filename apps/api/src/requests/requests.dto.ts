@@ -38,6 +38,22 @@ export class ConvertRequestDto {
     @IsOptional() @IsInt() @Min(15) @Max(600) estimatedMinutes?: number;
 }
 
+export class CreateClientFromRequestDto {
+    @IsString() @MinLength(2) @MaxLength(120) name: string;
+    @IsOptional() @IsEmail() email?: string;
+    @IsOptional() @IsString() @MaxLength(30) phone?: string;
+    @IsOptional() @IsString() @MaxLength(120) contactName?: string;
+    @IsString() @MinLength(2) @MaxLength(80) siteLabel: string;
+    @IsString() @MinLength(3) @MaxLength(160) address: string;
+    @IsOptional() @IsString() @MaxLength(10) postalCode?: string;
+    @IsOptional() @IsString() @MaxLength(80) city?: string;
+}
+
+export class SendReplyDto {
+    @IsString() @MinLength(3) @MaxLength(200) subject: string;
+    @IsString() @MinLength(10) @MaxLength(10_000) body: string;
+}
+
 export class ListRequestsQuery {
     @IsOptional() @IsIn(REQUEST_STATUSES) status?: RequestStatus;
 }

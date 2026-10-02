@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Badge, Card, EmptyState, KeyValue, PageHeader, Row } from '@/components/ui';
+import { AddContractForm, AddEquipmentForm, AddSiteForm, DeleteEquipmentButton, EditClientForm } from '@/features/clients/ClientEditors';
 import { api } from '@/lib/api';
 import { orNotFound } from '@/lib/data';
 import { EQUIPMENT, formatDate, formatMoney, INTERVENTION_STATUS, QUOTE_STATUS } from '@/lib/format';
@@ -22,7 +23,15 @@ export default async function ClientPage({ params }: PageProps<'/clients/[id]'>)
 
             <div className="two">
                 <div className="stack">
+                    <details className="card">
+                        <summary>Modifier la fiche</summary>
+                        <div className="mt">
+                            <EditClientForm client={client} />
+                        </div>
+                    </details>
+
                     <Card title="Sites & équipements">
+                        {client.sites.length === 0 && <div className="muted">Aucun site : ajoutez-en un pour planifier des interventions.</div>}
                         {client.sites.map((s) => (
                             <div key={s.id} className="row" style={{ alignItems: 'flex-start' }}>
                                 <div className="row-main">
@@ -30,16 +39,36 @@ export default async function ClientPage({ params }: PageProps<'/clients/[id]'>)
                                     <div className="muted">
                                         {s.address}, {s.postalCode} {s.city}
                                     </div>
-                                    <ul className="small" style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                                    <ul className="small equipment-list">
                                         {s.equipments.map((e) => (
                                             <li key={e.id}>
-                                                {e.label} <span className="muted">· {EQUIPMENT[e.type]}{e.brand ? ` · ${e.brand}` : ''}{e.model ? ` ${e.model}` : ''}</span>
+                                                <span className="grow">
+                                                    {e.label}{' '}
+                                                    <span className="muted">
+                                                        · {EQUIPMENT[e.type]}
+                                                        {e.brand ? ` · ${e.brand}` : ''}
+                                                        {e.model ? ` ${e.model}` : ''}
+                                                    </span>
+                                                </span>
+                                                <DeleteEquipmentButton equipment={e} />
                                             </li>
                                         ))}
                                     </ul>
+                                    <details className="mt">
+                                        <summary className="small">+ Équipement</summary>
+                                        <div className="mt">
+                                            <AddEquipmentForm siteId={s.id} />
+                                        </div>
+                                    </details>
                                 </div>
                             </div>
                         ))}
+                        <details className="mt">
+                            <summary>+ Ajouter un site</summary>
+                            <div className="mt">
+                                <AddSiteForm clientId={client.id} />
+                            </div>
+                        </details>
                     </Card>
 
                     <Card title="Contrats">
@@ -62,6 +91,12 @@ export default async function ClientPage({ params }: PageProps<'/clients/[id]'>)
                                 />
                             </div>
                         ))}
+                        <details className="mt">
+                            <summary>+ Ajouter un contrat</summary>
+                            <div className="mt">
+                                <AddContractForm clientId={client.id} />
+                            </div>
+                        </details>
                     </Card>
                 </div>
 

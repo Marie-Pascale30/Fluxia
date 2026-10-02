@@ -116,6 +116,7 @@ export const REQUEST_STATUS: Record<RequestStatus, Labelled> = {
     NEW: { label: 'Nouvelle', tone: 'dark' },
     ANALYZED: { label: 'Analysée', tone: 'blue' },
     CONVERTED: { label: 'Traitée', tone: 'green' },
+    ANSWERED: { label: 'Répondue', tone: 'green' },
     ARCHIVED: { label: 'Archivée' },
 };
 

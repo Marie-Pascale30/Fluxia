@@ -13,7 +13,7 @@ export default async function InboxRequestPage({ params, searchParams }: PagePro
     // Sans filtre explicite, on affiche l'onglet correspondant au statut de la demande
     const filter = raw
         ? parseInboxFilter(raw)
-        : request.status === 'CONVERTED' || request.status === 'ARCHIVED'
+        : request.status === 'CONVERTED' || request.status === 'ARCHIVED' || request.status === 'ANSWERED'
           ? request.status
           : 'open';
 

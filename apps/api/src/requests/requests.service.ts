@@ -1,12 +1,24 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ActivityService } from '../activity/activity.service.js';
 import { AiService } from '../ai/ai.service.js';
+import { currentUser } from '../auth/auth.types.js';
+import { ClientAdminService } from '../clients/client-admin.service.js';
 import { ClientsService } from '../clients/clients.service.js';
+import { formatDateFr, formatTimeFr } from '../common/dates.js';
 import type { InterventionType, Priority, RequestCategory } from '../common/domain.js';
 import { InterventionsService } from '../interventions/interventions.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { QuotesService } from '../quotes/quotes.service.js';
-import type { ConvertRequestDto, IngestRequestDto, ListRequestsQuery, UpdateRequestDto } from './requests.dto.js';
+import type {
+    ConvertRequestDto,
+    CreateClientFromRequestDto,
+    IngestRequestDto,
+    ListRequestsQuery,
+    SendReplyDto,
+    UpdateRequestDto,
+} from './requests.dto.js';
+
+const SIGNATURE = process.env.COMPANY_SIGNATURE ?? "L'équipe maintenance"; 
 
 const include = {
     client: { include: { sites: { include: { equipments: true } } } },
@@ -54,6 +66,7 @@ export class RequestsService {
         private readonly activity: ActivityService,
         private readonly ai: AiService,
         private readonly clients: ClientsService,
+        private readonly clientAdmin: ClientAdminService,
         private readonly interventions: InterventionsService,
         private readonly quotes: QuotesService,
     ) {}
@@ -74,8 +87,11 @@ export class RequestsService {
 
     async findOne(id: string) {
         const request = await this.get(id);
-        const coverage = request.clientId ? await this.clients.coverage(request.clientId) : null;
-        return { ...request, coverage };
+        const [coverage, messages] = await Promise.all([
+            request.clientId ? this.clients.coverage(request.clientId) : null,
+            this.activity.messagesFor([id]),
+        ]);
+        return { ...request, coverage, replies: messages };
     }
 
     /** Réception d'une demande (email, formulaire…) : elle est analysée immédiatement. */
@@ -123,6 +139,8 @@ export class RequestsService {
                 symptoms: analysis.symptoms,
                 suggestedAction: analysis.suggestedAction,
                 confidence: analysis.confidence,
+                extractedPhone: analysis.contactPhone,
+                extractedAddress: analysis.contactAddress,
                 aiProvider: provider,
                 analyzedAt: new Date(),
                 clientId: match?.client.id ?? null,
@@ -205,6 +223,87 @@ export class RequestsService {
 
     createQuote(id: string) {
         return this.quotes.createFromRequest(id);
+    }
+
+    /** Expéditeur inconnu : crée la fiche client (et son site) puis la rattache à la demande. */
+    async createClient(id: string, dto: CreateClientFromRequestDto) {
+        const request = await this.get(id);
+        if (request.clientId) throw new ConflictException(`Demande déjà rattachée à ${request.client?.name}`);
+
+        await this.prisma.$transaction(async (tx) => {
+            const client = await this.clientAdmin.createClient(
+                {
+                    name: dto.name,
+                    email: dto.email ?? request.fromEmail,
+                    phone: dto.phone,
+                    contactName: dto.contactName,
+                    site: { label: dto.siteLabel, address: dto.address, postalCode: dto.postalCode, city: dto.city },
+                },
+                tx,
+            );
+            await tx.inboundRequest.update({
+                where: { id },
+                data: { clientId: client.id, siteId: client.sites[0]?.id ?? null, equipmentId: null },
+            });
+        });
+        return this.findOne(id);
+    }
+
+    /** Faits vérifiables que la réponse peut annoncer (rien d'inventé). */
+    private async replyFacts(id: string) {
+        const request = await this.prisma.inboundRequest.findUniqueOrThrow({
+            where: { id },
+            include: {
+                client: true,
+                intervention: { include: { technician: true } },
+                quote: true,
+            },
+        });
+        const facts: string[] = [];
+        const i = request.intervention;
+        if (i?.scheduledStart && i.technician && ['SCHEDULED', 'DISPATCHED'].includes(i.status)) {
+            facts.push(`Intervention de ${i.technician.firstName} prévue ${formatDateFr(i.scheduledStart)} à ${formatTimeFr(i.scheduledStart)}`);
+        } else if (i) {
+            facts.push(`Intervention n°${i.number} enregistrée, un technicien va vous être affecté`);
+        }
+        if (request.quote?.status === 'SENT') facts.push(`Devis ${request.quote.number} envoyé`);
+        else if (request.quote) facts.push('Devis en cours de préparation');
+        return { request, facts };
+    }
+
+    async draftReply(id: string) {
+        const { request, facts } = await this.replyFacts(id);
+        const user = currentUser();
+        const signature = user ? `${user.name}\n${SIGNATURE}` : SIGNATURE;
+        const { data, provider } = await this.ai.draftReply({
+            fromName: request.fromName,
+            subject: request.subject,
+            body: request.body,
+            category: request.category,
+            clientName: request.client?.name ?? null,
+            facts,
+            signature,
+        });
+        return { ...data, provider, facts };
+    }
+
+    async sendReply(id: string, dto: SendReplyDto) {
+        const request = await this.get(id);
+        await this.prisma.$transaction(async (tx) => {
+            await this.activity.sendMessage(
+                { recipient: request.fromEmail, subject: dto.subject, body: dto.body, entityType: 'REQUEST', entityId: id },
+                tx,
+            );
+            // Une demande déjà transformée en intervention/devis garde ce statut
+            if (request.status === 'NEW' || request.status === 'ANALYZED') {
+                await tx.inboundRequest.update({ where: { id }, data: { status: 'ANSWERED' } });
+            }
+            await this.activity.log(
+                { actor: 'USER', type: 'REQUEST_ANSWERED', message: `Réponse envoyée à ${request.fromName}`, entityType: 'REQUEST', entityId: id },
+                tx,
+            );
+        });
+        return this.findOne(id);
     }
 
     async archive(id: string) {

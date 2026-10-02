@@ -7,6 +7,7 @@ import { AiModule } from './ai/ai.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { ClientsModule } from './clients/clients.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
+import { GeoModule } from './geo/geo.service.js';
 import { InterventionsModule } from './interventions/interventions.module.js';
 import { PlanningModule } from './planning/planning.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -32,6 +33,7 @@ class HealthController {
         AuthModule,
         ActivityModule,
         AiModule,
+        GeoModule,
         // Référentiels
         CatalogModule,
         ClientsModule,

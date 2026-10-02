@@ -1,21 +1,21 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
-import { FLASH_COOKIE } from '@/lib/flash';
+import { useEffect, useRef } from 'react';
+import { decodeFlash, FLASH_COOKIE } from '@/lib/flash';
 import { useToast } from './Toast';
 
-/** Affiche le message "flash" laissé par une Server Action avant redirection. */
-export function FlashToast() {
-    const pathname = usePathname();
+/** Affiche le message de succès laissé par la dernière Server Action (lu côté serveur). */
+export function FlashToast({ value }: { value?: string }) {
     const toast = useToast();
+    const shown = useRef<string | null>(null);
 
     useEffect(() => {
-        const match = document.cookie.match(new RegExp(`(?:^|; )${FLASH_COOKIE}=([^;]*)`));
-        if (!match) return;
+        const flash = decodeFlash(value);
+        if (!flash || shown.current === flash.id) return;
+        shown.current = flash.id;
         document.cookie = `${FLASH_COOKIE}=; Max-Age=0; path=/`;
-        toast(decodeURIComponent(match[1]));
-    }, [pathname, toast]);
+        toast(flash.message);
+    }, [value, toast]);
 
     return null;
 }

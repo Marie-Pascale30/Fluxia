@@ -12,6 +12,8 @@ import type {
     AiProvider,
     AnalyzeRequestInput,
     CatalogEntry,
+    DraftReplyInput,
+    ReplyDraft,
     DraftReportInput,
     QuoteSuggestion,
     ReportDraft,
@@ -34,6 +36,13 @@ const RequestAnalysisSchema = z.object({
     equipmentType: z.enum(EQUIPMENT_TYPES).nullable(),
     suggestedAction: z.enum(SUGGESTED_ACTIONS),
     confidence: z.number().describe('Confiance globale entre 0 et 1.'),
+    contactPhone: z.string().nullable().describe("Téléphone de l'expéditeur s'il figure dans le message."),
+    contactAddress: z.string().nullable().describe("Adresse d'intervention si elle figure dans le message."),
+});
+
+const ReplySchema = z.object({
+    subject: z.string(),
+    body: z.string().describe('Corps du mail en texte brut, avec formule de politesse et signature.'),
 });
 
 const ReportDraftSchema = z.object({
@@ -135,6 +144,27 @@ ${catalogText(input.catalog)}
 ${input.voiceNote}
 </compte_rendu_technicien>`,
             'medium',
+        );
+    }
+
+    draftReply(input: DraftReplyInput): Promise<ReplyDraft> {
+        return this.parse(
+            ReplySchema,
+            `Rédige une réponse courte et chaleureuse au client, en français, en vouvoyant.
+N'annonce que les faits listés ci-dessous : ne promets ni date ni prix qui n'y figurent pas.
+Signe avec : ${input.signature}
+
+Client : ${input.clientName ?? 'non identifié'}
+Faits établis :
+${input.facts.map((f) => `- ${f}`).join('\n') || '- aucun pour le moment (accuser réception et annoncer un retour rapide)'}
+
+<message_client>
+De : ${input.fromName}
+Objet : ${input.subject}
+
+${input.body}
+</message_client>`,
+            'low',
         );
     }
 

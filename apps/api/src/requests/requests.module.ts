@@ -1,5 +1,12 @@
 import { Body, Controller, Get, HttpCode, Module, Param, Patch, Post, Query } from '@nestjs/common';
-import { ConvertRequestDto, IngestRequestDto, ListRequestsQuery, UpdateRequestDto } from './requests.dto.js';
+import {
+    ConvertRequestDto,
+    CreateClientFromRequestDto,
+    IngestRequestDto,
+    ListRequestsQuery,
+    SendReplyDto,
+    UpdateRequestDto,
+} from './requests.dto.js';
 import { RequestsService } from './requests.service.js';
 
 @Controller('requests')
@@ -40,6 +47,23 @@ class RequestsController {
     @Post(':id/quote')
     quote(@Param('id') id: string) {
         return this.requests.createQuote(id);
+    }
+
+    @Post(':id/client')
+    createClient(@Param('id') id: string, @Body() dto: CreateClientFromRequestDto) {
+        return this.requests.createClient(id, dto);
+    }
+
+    @Post(':id/reply-draft')
+    @HttpCode(200)
+    draftReply(@Param('id') id: string) {
+        return this.requests.draftReply(id);
+    }
+
+    @Post(':id/reply')
+    @HttpCode(200)
+    sendReply(@Param('id') id: string, @Body() dto: SendReplyDto) {
+        return this.requests.sendReply(id, dto);
     }
 
     @Post(':id/archive')

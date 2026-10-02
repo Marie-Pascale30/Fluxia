@@ -22,7 +22,9 @@ import type {
     Report,
     ReportDetail,
     ReportSummary,
+    ReplyDraft,
     RequestStatus,
+    Technician,
     TechnicianDetail,
     TechnicianWithLoad,
 } from './types';
@@ -78,6 +80,14 @@ const get = <T>(path: string) => request<T>(path);
 const post = <T>(path: string, data?: unknown) =>
     request<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined });
 const patch = <T>(path: string, data: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(data) });
+const del = <T>(path: string) => request<T>(path, { method: 'DELETE' });
+
+export interface SiteInput {
+    label: string;
+    address: string;
+    postalCode?: string;
+    city?: string;
+}
 
 const qs = (params: Record<string, string | undefined>) => {
     const search = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => !!e[1]));
@@ -110,6 +120,9 @@ export const api = {
         convert: (id: string, data: object = {}) => post<Intervention>(`/requests/${id}/convert`, data),
         quote: (id: string) => post<Quote>(`/requests/${id}/quote`),
         archive: (id: string) => post<InboundRequestDetail>(`/requests/${id}/archive`),
+        createClient: (id: string, data: object) => post<InboundRequestDetail>(`/requests/${id}/client`, data),
+        replyDraft: (id: string) => post<ReplyDraft>(`/requests/${id}/reply-draft`),
+        reply: (id: string, data: { subject: string; body: string }) => post<InboundRequestDetail>(`/requests/${id}/reply`, data),
     },
 
     interventions: {
@@ -130,8 +143,12 @@ export const api = {
     planning: (date?: string) => get<PlanningDay>(`/planning${qs({ date })}`),
 
     technicians: {
-        list: () => get<TechnicianWithLoad[]>('/technicians'),
+        list: (options: { includeInactive?: boolean } = {}) =>
+            get<TechnicianWithLoad[]>(`/technicians${qs({ includeInactive: options.includeInactive ? 'true' : undefined })}`),
         get: (id: string, date?: string) => get<TechnicianDetail>(`/technicians/${id}${qs({ date })}`),
+        create: (data: object) => post<{ technician: Technician; temporaryPassword: string }>('/technicians', data),
+        update: (id: string, data: object) => patch<Technician>(`/technicians/${id}`, data),
+        resetPassword: (id: string) => post<{ temporaryPassword: string }>(`/technicians/${id}/reset-password`),
     },
 
     reports: {
@@ -155,7 +172,19 @@ export const api = {
     clients: {
         list: (search?: string) => get<ClientSummary[]>(`/clients${qs({ search })}`),
         get: (id: string) => get<ClientDetail>(`/clients/${id}`),
+        create: (data: object) => post<ClientDetail>('/clients', data),
+        update: (id: string, data: object) => patch<ClientDetail>(`/clients/${id}`, data),
+        addSite: (id: string, data: SiteInput) => post<unknown>(`/clients/${id}/sites`, data),
+        updateSite: (id: string, data: Partial<SiteInput>) => patch<unknown>(`/sites/${id}`, data),
+        addEquipment: (siteId: string, data: object) => post<unknown>(`/sites/${siteId}/equipments`, data),
+        deleteEquipment: (id: string) => del<unknown>(`/equipments/${id}`),
+        addContract: (id: string, data: object) => post<unknown>(`/clients/${id}/contracts`, data),
+        updateContract: (id: string, data: object) => patch<unknown>(`/contracts/${id}`, data),
     },
 
     catalog: () => get<CatalogItem[]>('/catalog'),
+    catalogItems: {
+        create: (data: object) => post<CatalogItem>('/catalog', data),
+        update: (id: string, data: object) => patch<CatalogItem>(`/catalog/${id}`, data),
+    },
 };

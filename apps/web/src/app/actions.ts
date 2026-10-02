@@ -7,19 +7,21 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { redirect, unstable_rethrow } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
-import { FLASH_COOKIE } from '@/lib/flash';
+import { encodeFlash, FLASH_COOKIE } from '@/lib/flash';
 import { fromLocalInput } from '@/lib/format';
 
-export interface ActionResult {
+export interface ActionResult<D = unknown> {
     ok: boolean;
     message: string;
     redirectTo?: string;
+    /** Données renvoyées au composant (ex. mot de passe provisoire, brouillon) */
+    data?: D;
 }
 
-async function run(
-    task: () => Promise<{ message: string; redirectTo?: string } | string>,
-): Promise<ActionResult> {
-    let result: { message: string; redirectTo?: string };
+async function run<D = unknown>(
+    task: () => Promise<{ message: string; redirectTo?: string; data?: D } | string>,
+): Promise<ActionResult<D>> {
+    let result: { message: string; redirectTo?: string; data?: D };
     try {
         const value = await task();
         result = typeof value === 'string' ? { message: value } : value;
@@ -29,14 +31,12 @@ async function run(
         return { ok: false, message };
     }
 
+    // Le message de succès passe par un cookie "flash" affiché au rendu suivant :
+    // fiable même si le composant appelant disparaît ou si l'on redirige.
+    (await cookies()).set(FLASH_COOKIE, encodeFlash(result.message), { maxAge: 30, path: '/' });
     revalidatePath('/', 'layout');
-    if (result.redirectTo) {
-        // Redirection côté serveur : fiable même si le composant appelant disparaît
-        // après revalidation. Le message est transmis via un cookie "flash".
-        (await cookies()).set(FLASH_COOKIE, result.message, { maxAge: 30, path: "/" });
-        redirect(result.redirectTo);
-    }
-    return { ok: true, message: result.message };
+    if (result.redirectTo) redirect(result.redirectTo);
+    return { ok: true, message: result.message, data: result.data };
 }
 
 const str = (form: FormData, key: string) => {
@@ -229,5 +229,197 @@ export async function quoteTransition(id: string, transition: keyof typeof QUOTE
     return run(async () => {
         await api.quotes.transition(id, transition);
         return QUOTE_MESSAGES[transition];
+    });
+}
+
+// ─── Réponses et fiches créées depuis l'Inbox ───────────────────
+
+export async function createClientFromRequest(id: string, _: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        await api.requests.createClient(id, {
+            name: str(form, 'name'),
+            email: str(form, 'email'),
+            phone: str(form, 'phone'),
+            contactName: str(form, 'contactName'),
+            siteLabel: str(form, 'siteLabel') ?? 'Site principal',
+            address: str(form, 'address'),
+            postalCode: str(form, 'postalCode'),
+            city: str(form, 'city'),
+        });
+        return 'Fiche client créée et rattachée à la demande';
+    });
+}
+
+export async function draftReply(id: string) {
+    return run(async () => {
+        const draft = await api.requests.replyDraft(id);
+        return { message: 'Brouillon de réponse prêt : relisez-le avant envoi', data: draft };
+    });
+}
+
+export async function sendReply(id: string, _: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        await api.requests.reply(id, { subject: str(form, 'subject') ?? '', body: str(form, 'body') ?? '' });
+        return 'Réponse envoyée au client';
+    });
+}
+
+// ─── Clients ────────────────────────────────────────────────────
+
+const siteFrom = (form: FormData, prefix = '') => ({
+    label: str(form, `${prefix}label`) ?? 'Site principal',
+    address: str(form, `${prefix}address`) ?? '',
+    postalCode: str(form, `${prefix}postalCode`),
+    city: str(form, `${prefix}city`),
+});
+
+export async function createClient(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        const withSite = !!str(form, 'site.address');
+        const client = await api.clients.create({
+            name: str(form, 'name'),
+            email: str(form, 'email'),
+            phone: str(form, 'phone'),
+            contactName: str(form, 'contactName'),
+            site: withSite ? siteFrom(form, 'site.') : undefined,
+        });
+        return { message: `Client « ${client.name} » créé`, redirectTo: `/clients/${client.id}` };
+    });
+}
+
+export async function updateClient(id: string, _: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        await api.clients.update(id, {
+            name: str(form, 'name'),
+            email: str(form, 'email'),
+            phone: str(form, 'phone'),
+            contactName: str(form, 'contactName'),
+        });
+        return 'Fiche client mise à jour';
+    });
+}
+
+export async function addSite(clientId: string, _: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        await api.clients.addSite(clientId, siteFrom(form));
+        return 'Site ajouté et géolocalisé';
+    });
+}
+
+export async function addEquipment(siteId: string, _: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        await api.clients.addEquipment(siteId, {
+            type: str(form, 'type'),
+            label: str(form, 'label'),
+            brand: str(form, 'brand'),
+            model: str(form, 'model'),
+        });
+        return 'Équipement ajouté';
+    });
+}
+
+export async function deleteEquipment(id: string) {
+    return run(async () => {
+        await api.clients.deleteEquipment(id);
+        return 'Équipement supprimé';
+    });
+}
+
+const dateField = (form: FormData, key: string) => {
+    const value = str(form, key);
+    return value ? new Date(`${value}T12:00:00Z`).toISOString() : undefined;
+};
+
+export async function addContract(clientId: string, _: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        await api.clients.addContract(clientId, {
+            reference: str(form, 'reference'),
+            label: str(form, 'label'),
+            startDate: dateField(form, 'startDate'),
+            endDate: dateField(form, 'endDate'),
+            nextServiceDate: dateField(form, 'nextServiceDate'),
+            coversLabor: form.get('coversLabor') === 'on',
+            coversParts: form.get('coversParts') === 'on',
+            coversTravel: form.get('coversTravel') === 'on',
+        });
+        return 'Contrat ajouté';
+    });
+}
+
+// ─── Techniciens ────────────────────────────────────────────────
+
+const skillsFrom = (form: FormData) => form.getAll('skills').filter((s): s is string => typeof s === 'string');
+
+export async function createTechnician(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        const { technician, temporaryPassword } = await api.technicians.create({
+            firstName: str(form, 'firstName'),
+            lastName: str(form, 'lastName'),
+            email: str(form, 'email'),
+            phone: str(form, 'phone'),
+            skills: skillsFrom(form),
+            baseAddress: str(form, 'baseAddress'),
+        });
+        return {
+            message: `${technician.firstName} ${technician.lastName} ajouté`,
+            data: { email: technician.email, temporaryPassword },
+        };
+    });
+}
+
+export async function updateTechnician(id: string, _: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        await api.technicians.update(id, {
+            firstName: str(form, 'firstName'),
+            lastName: str(form, 'lastName'),
+            phone: str(form, 'phone'),
+            skills: skillsFrom(form),
+            baseAddress: str(form, 'baseAddress'),
+        });
+        return 'Technicien mis à jour';
+    });
+}
+
+export async function setTechnicianActive(id: string, active: boolean) {
+    return run(async () => {
+        await api.technicians.update(id, { active });
+        return active ? 'Technicien réactivé' : 'Technicien désactivé, son accès est coupé';
+    });
+}
+
+export async function resetTechnicianPassword(id: string) {
+    return run(async () => {
+        const { temporaryPassword } = await api.technicians.resetPassword(id);
+        return { message: 'Mot de passe réinitialisé', data: { temporaryPassword } };
+    });
+}
+
+// ─── Catalogue ──────────────────────────────────────────────────
+
+const euros = (form: FormData, key: string) => Math.round(Number((str(form, key) ?? '0').replace(',', '.')) * 100);
+const keywordsFrom = (form: FormData) => (str(form, 'keywords') ?? '').split(',').map((k) => k.trim()).filter(Boolean);
+
+export async function createCatalogItem(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        const item = await api.catalogItems.create({
+            code: (str(form, 'code') ?? '').toUpperCase(),
+            kind: str(form, 'kind'),
+            label: str(form, 'label'),
+            unitPriceCents: euros(form, 'price'),
+            keywords: keywordsFrom(form),
+        });
+        return `Article ${item.code} ajouté`;
+    });
+}
+
+export async function updateCatalogItem(id: string, _: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        await api.catalogItems.update(id, {
+            label: str(form, 'label'),
+            kind: str(form, 'kind'),
+            unitPriceCents: euros(form, 'price'),
+            keywords: keywordsFrom(form),
+        });
+        return 'Article mis à jour';
     });
 }

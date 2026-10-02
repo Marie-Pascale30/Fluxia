@@ -41,6 +41,7 @@ enum RequestStatus {
   NEW
   ANALYZED
   CONVERTED
+  ANSWERED
   ARCHIVED
 }
 
@@ -240,6 +241,9 @@ model InboundRequest {
   confidence      Float?
   aiProvider      String?
   analyzedAt      DateTime?
+  /// Coordonnées repérées dans le message (pour créer la fiche client)
+  extractedPhone   String?
+  extractedAddress String?
 
   clientId    String?
   siteId      String?

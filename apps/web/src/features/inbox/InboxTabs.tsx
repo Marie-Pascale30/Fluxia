@@ -3,6 +3,7 @@ import { Tabs } from '@/components/ui';
 export const INBOX_FILTERS = [
     { key: 'open', label: 'À traiter' },
     { key: 'CONVERTED', label: 'Traitées' },
+    { key: 'ANSWERED', label: 'Répondues' },
     { key: 'ARCHIVED', label: 'Archivées' },
 ] as const;
 

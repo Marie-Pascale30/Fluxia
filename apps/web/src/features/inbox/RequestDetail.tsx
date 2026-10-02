@@ -11,6 +11,7 @@ import {
     CATEGORY,
     EQUIPMENT,
     formatDateTime,
+    formatRelative,
     INTERVENTION_STATUS,
     PRIORITY,
     providerLabel,
@@ -19,6 +20,8 @@ import {
 } from '@/lib/format';
 import type { ClientSummary, InboundRequestDetail } from '@/lib/types';
 import { CorrectionForm } from './CorrectionForm';
+import { CreateClientForm } from './CreateClientForm';
+import { ReplyComposer } from './ReplyComposer';
 
 function coverageLabel(r: InboundRequestDetail) {
     if (!r.client) return '—';
@@ -32,7 +35,9 @@ function coverageLabel(r: InboundRequestDetail) {
 
 export function RequestDetail({ request: r, clients }: { request: InboundRequestDetail; clients: ClientSummary[] }) {
     const analyzed = r.status !== 'NEW';
-    const closed = r.status === 'CONVERTED' || r.status === 'ARCHIVED';
+    // "Traitée" : une intervention ou un devis existe ; on peut encore répondre au client
+    const closed = r.status === 'CONVERTED' || r.status === 'ARCHIVED' || r.status === 'ANSWERED';
+    const createLabel = r.category === 'MAINTENANCE' ? "Planifier l'entretien" : "Créer l'intervention";
     const canCreate = !!r.clientId && !!r.siteId;
     const confidence = r.confidence != null ? Math.round(r.confidence * 100) : null;
 
@@ -98,7 +103,7 @@ export function RequestDetail({ request: r, clients }: { request: InboundRequest
                             disabled={!canCreate}
                             title={canCreate ? undefined : 'Rattachez un client et un site'}
                         >
-                            Créer l&apos;intervention
+                            {createLabel}
                         </ActionButton>
                     )}
                     {analyzed && (r.category === 'QUOTE_REQUEST' || r.suggestedAction === 'PREPARE_QUOTE') && (
@@ -119,6 +124,35 @@ export function RequestDetail({ request: r, clients }: { request: InboundRequest
                     <ActionButton action={archiveRequest.bind(null, r.id)} variant="light" confirm="Archiver cette demande ?">
                         Archiver
                     </ActionButton>
+                </div>
+            )}
+
+            {analyzed && !r.clientId && r.status !== 'ARCHIVED' && (
+                <Notice tone="warning" title="Expéditeur inconnu">
+                    Créez sa fiche pour pouvoir planifier une intervention ou préparer un devis.
+                    <details className="mt" open>
+                        <summary>Nouvelle fiche client</summary>
+                        <div className="mt">
+                            <CreateClientForm request={r} />
+                        </div>
+                    </details>
+                </Notice>
+            )}
+
+            {r.status !== 'ARCHIVED' && (
+                <div className="mt">
+                    <div className="label">Répondre au client</div>
+                    {r.replies.map((m) => (
+                        <details key={m.id} className="mt">
+                            <summary>
+                                ✉ {m.subject} <span className="muted small">— envoyé {formatRelative(m.createdAt)}</span>
+                            </summary>
+                            <div className="email-body mt">{m.body}</div>
+                        </details>
+                    ))}
+                    <div className="actions" style={{ marginTop: 10 }}>
+                        <ReplyComposer requestId={r.id} recipient={r.fromEmail} />
+                    </div>
                 </div>
             )}
 

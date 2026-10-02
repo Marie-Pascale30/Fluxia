@@ -110,16 +110,6 @@ export default async function QuotePage({ params }: PageProps<'/devis/[id]'>) {
                             ]}
                         />
                         <div className="actions">
-                            {draft && (
-                                <ActionButton
-                                    action={quoteTransition.bind(null, id, 'validate')}
-                                    variant="green"
-                                    disabled={missingPrices || q.lines.length === 0}
-                                    title={missingPrices ? 'Complétez les prix manquants' : undefined}
-                                >
-                                    Valider le devis
-                                </ActionButton>
-                            )}
                             {q.status === 'VALIDATED' && (
                                 <>
                                     <ActionButton action={quoteTransition.bind(null, id, 'send')} variant="green" confirm={`Envoyer le devis à ${q.client.email ?? 'ce client'} ?`}>
@@ -141,7 +131,7 @@ export default async function QuotePage({ params }: PageProps<'/devis/[id]'>) {
                                 </>
                             )}
                         </div>
-                        {draft && <p className="muted small">Enregistrez vos modifications avant de valider. Un devis n&apos;est jamais envoyé sans validation.</p>}
+                        {draft && <p className="muted small">Validez le devis depuis l&apos;éditeur. Un devis n&apos;est jamais envoyé sans validation.</p>}
                     </Card>
 
                     <Card title="Historique">

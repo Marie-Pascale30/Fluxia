@@ -12,7 +12,15 @@ export default async function ClientsPage({ searchParams }: PageProps<'/clients'
 
     return (
         <>
-            <PageHeader title="Clients" subtitle="L'historique de chaque client devient directement exploitable par l'IA." />
+            <PageHeader
+                title="Clients"
+                subtitle="L'historique de chaque client devient directement exploitable par l'IA."
+                actions={
+                    <Link href="/clients/nouveau" className="btn">
+                        + Nouveau client
+                    </Link>
+                }
+            />
             <form className="row-flex mb" action="/clients">
                 <input name="q" className="input" style={{ maxWidth: 320 }} placeholder="Rechercher un client…" defaultValue={q} />
                 <button className="btn light">Rechercher</button>

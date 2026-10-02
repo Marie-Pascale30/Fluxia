@@ -29,6 +29,9 @@ export interface RequestAnalysis {
     suggestedAction: SuggestedAction;
     /** 0..1 */
     confidence: number;
+    /** Coordonnées repérées dans le message (utile pour un expéditeur inconnu) */
+    contactPhone: string | null;
+    contactAddress: string | null;
 }
 
 export interface DraftReportInput {
@@ -67,12 +70,29 @@ export interface QuoteSuggestion {
     warnings: string[];
 }
 
+export interface DraftReplyInput {
+    fromName: string;
+    subject: string;
+    body: string;
+    category: RequestCategory | null;
+    clientName: string | null;
+    /** Faits établis à mentionner (intervention planifiée, devis en cours…) */
+    facts: string[];
+    signature: string;
+}
+
+export interface ReplyDraft {
+    subject: string;
+    body: string;
+}
+
 /** Contrat commun à tous les moteurs d'IA (heuristique locale, Claude…). */
 export interface AiProvider {
     readonly name: string;
     analyzeRequest(input: AnalyzeRequestInput): Promise<RequestAnalysis>;
     draftReport(input: DraftReportInput): Promise<ReportDraft>;
     suggestQuote(input: SuggestQuoteInput): Promise<QuoteSuggestion>;
+    draftReply(input: DraftReplyInput): Promise<ReplyDraft>;
 }
 
 export interface AiResult<T> {

@@ -4,7 +4,9 @@ import type {
     AiProvider,
     AiResult,
     AnalyzeRequestInput,
+    DraftReplyInput,
     DraftReportInput,
+    ReplyDraft,
     QuoteSuggestion,
     ReportDraft,
     RequestAnalysis,
@@ -52,6 +54,10 @@ export class AiService {
 
     draftReport(input: DraftReportInput): Promise<AiResult<ReportDraft>> {
         return this.run('draftReport', (p) => p.draftReport(input));
+    }
+
+    draftReply(input: DraftReplyInput): Promise<AiResult<ReplyDraft>> {
+        return this.run('draftReply', (p) => p.draftReply(input));
     }
 
     suggestQuote(input: SuggestQuoteInput): Promise<AiResult<QuoteSuggestion>> {

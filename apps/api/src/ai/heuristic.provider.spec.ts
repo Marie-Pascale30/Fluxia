@@ -60,3 +60,31 @@ describe('cleanSubject', () => {
         expect(cleanSubject('RE: Urgent — climatisation en panne')).toBe('Climatisation en panne');
     });
 });
+
+describe('extractContact', () => {
+    it('repère téléphone et adresse', async () => {
+        const { extractContact } = await import('./heuristic.provider.js');
+        expect(extractContact('Appelez-moi au 06 12 34 56 78, j’habite au 12 rue des Lilas, 75015 Paris.')).toEqual({
+            phone: '06 12 34 56 78',
+            address: '12 rue des Lilas, 75015 Paris',
+        });
+        expect(extractContact('J’habite Paris 15e, tél 0612345678')).toEqual({ phone: '0612345678', address: 'Paris 15e' });
+    });
+});
+
+describe('HeuristicProvider.draftReply', () => {
+    it('rédige un accusé de réception avec les faits établis', async () => {
+        const res = await ai.draftReply({
+            fromName: 'Julie Bernard',
+            subject: 'Chaudière en panne',
+            body: '…',
+            category: 'BREAKDOWN',
+            clientName: null,
+            facts: ['Intervention planifiée jeudi 1 octobre à 14:00'],
+            signature: "L'équipe Fluxia",
+        });
+        expect(res.subject).toBe('Re: Chaudière en panne');
+        expect(res.body).toContain('Bonjour Julie,');
+        expect(res.body).toContain('• Intervention planifiée');
+    });
+});

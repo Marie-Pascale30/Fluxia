@@ -1101,3 +1101,66 @@ details summary {
 .auth-brand span {
     opacity: 0.45;
 }
+
+/* ─── Formulaires : cases à cocher ──────────────────────────── */
+.checks {
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 0;
+}
+
+.checks legend {
+    font-size: 12px;
+    font-weight: 700;
+    color: #4b576b;
+    padding: 0 4px;
+}
+
+.form .check,
+.check {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.equipment-list {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+}
+
+.equipment-list li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.password-reveal {
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    background: #fff;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    padding: 4px 8px;
+    user-select: all;
+}
+
+.inactive-card {
+    opacity: 0.6;
+}
+
+.dirty-hint {
+    color: var(--orange);
+    font-weight: 700;
+    font-size: 12px;
+}

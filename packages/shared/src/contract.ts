@@ -233,6 +233,8 @@ export const InboundRequest = z.object({
     suggestedAction: z.enum(D.SUGGESTED_ACTIONS).nullable(),
     confidence: z.number().nullable(),
     aiProvider: z.string().nullable(),
+    extractedPhone: z.string().nullable(),
+    extractedAddress: z.string().nullable(),
     clientId: z.string().nullable(),
     siteId: z.string().nullable(),
     equipmentId: z.string().nullable(),
@@ -248,7 +250,18 @@ export const InboundRequestDetail = InboundRequest.extend({
     intervention: Ref({ number: z.number().int(), status: z.enum(D.INTERVENTION_STATUSES) }).nullable(),
     quote: Ref({ number: z.string(), status: z.enum(D.QUOTE_STATUSES) }).nullable(),
     coverage: Coverage.nullable(),
+    /** Réponses déjà envoyées à l'expéditeur */
+    replies: z.array(OutboundMessage),
 });
+
+export const ReplyDraft = z.object({
+    subject: z.string(),
+    body: z.string(),
+    provider: z.string(),
+    facts: z.array(z.string()),
+});
+
+export const TemporaryPassword = z.object({ temporaryPassword: z.string().min(8) });
 
 // ─── Rapports & devis ────────────────────────────────────────────
 
