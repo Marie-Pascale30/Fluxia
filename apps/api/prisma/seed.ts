@@ -2,9 +2,10 @@
 // Lancer : npm run db:reset (efface et recrée la base).
 import { hashPassword } from '../src/auth/password.js';
 import { addDays, atTime, fromZoned, startOfDay, zonedParts } from '../src/common/dates.js';
-import { PrismaClient, type EquipmentType, type InterventionType } from '../src/generated/prisma/client.js';
+import type { EquipmentType, InterventionType } from '../src/generated/prisma/client.js';
+import { createPrismaClient } from '../src/prisma/prisma.service.js';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 /** Mot de passe des comptes de démonstration (à changer en production). */
 const DEMO_PASSWORD = 'fluxia-demo';
