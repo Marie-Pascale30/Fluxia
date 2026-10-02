@@ -1259,3 +1259,122 @@ label.btn input[type='file'] {
 .portal-quote:first-of-type {
     border-top: 0;
 }
+
+/* ─── Planning interactif ───────────────────────────────────── */
+.planning-board {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 16px;
+    align-items: start;
+}
+
+.planning-board.is-saving {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.planning-scroll {
+    overflow-x: auto;
+}
+
+.planning-col.drop-target {
+    background-color: #f4f8ff;
+}
+
+.slot.movable {
+    cursor: grab;
+}
+
+.slot.dragging,
+.unscheduled-item.dragging {
+    opacity: 0.4;
+}
+
+.slot-ghost {
+    position: absolute;
+    left: 5px;
+    right: 5px;
+    border: 2px dashed var(--blue);
+    border-radius: 7px;
+    background: #315fa814;
+    color: var(--blue);
+    font-size: 11.5px;
+    font-weight: 750;
+    padding: 4px 8px;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.unscheduled {
+    position: sticky;
+    top: 78px;
+}
+
+.unscheduled-item {
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 9px 10px;
+    margin: 8px 0;
+    cursor: grab;
+    background: #fff;
+}
+
+.unscheduled-item a {
+    text-decoration: none;
+}
+
+.week-grid th,
+.week-grid td {
+    vertical-align: top;
+    min-width: 150px;
+}
+
+.week-grid th a {
+    text-decoration: none;
+    text-transform: capitalize;
+}
+
+.week-grid .today {
+    background: #f7f9ff;
+}
+
+.week-item {
+    display: block;
+    text-decoration: none;
+    font-size: 12px;
+    line-height: 1.3;
+    padding: 6px 8px;
+    margin: 4px 0;
+    border-radius: 7px;
+    background: var(--blue-soft);
+    border-left: 3px solid #6385bf;
+}
+
+.week-item.urgent {
+    background: var(--red-soft);
+    border-left-color: #d06060;
+}
+
+.week-load {
+    height: 4px;
+    background: var(--grey-soft);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.week-load span {
+    display: block;
+    height: 100%;
+    background: var(--blue);
+}
+
+@media (max-width: 1100px) {
+    .planning-board {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .unscheduled {
+        position: static;
+    }
+}
