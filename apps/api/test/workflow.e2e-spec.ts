@@ -2,7 +2,11 @@
 // Chaque réponse est validée contre le contrat partagé (@fluxia/shared).
 import { schemas as S } from '@fluxia/shared';
 import { z } from 'zod';
-import { call, expectContract } from './client.js';
+import { call, expectContract, login, useToken } from './client.js';
+
+beforeAll(async () => {
+    useToken(await login('julien@fluxia.fr'));
+});
 
 const NOTE =
     "J'ai trouvé le condensateur défectueux. Je l'ai remplacé, vérifié la pression et redémarré le groupe. Tout fonctionne normalement. Je recommande un nettoyage complet au prochain passage.";

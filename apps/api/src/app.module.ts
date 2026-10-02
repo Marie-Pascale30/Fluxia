@@ -1,6 +1,8 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ActivityModule } from './activity/activity.module.js';
+import { AuthModule } from './auth/auth.module.js';
+import { Public } from './auth/decorators.js';
 import { AiModule } from './ai/ai.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { ClientsModule } from './clients/clients.module.js';
@@ -13,6 +15,7 @@ import { ReportsModule } from './reports/reports.module.js';
 import { RequestsModule } from './requests/requests.module.js';
 import { TechniciansModule } from './technicians/technicians.module.js';
 
+@Public()
 @Controller('health')
 class HealthController {
     @Get()
@@ -26,6 +29,7 @@ class HealthController {
         ConfigModule.forRoot({ isGlobal: true }),
         // Infrastructure
         PrismaModule,
+        AuthModule,
         ActivityModule,
         AiModule,
         // Référentiels

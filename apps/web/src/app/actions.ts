@@ -5,7 +5,7 @@
 // Pour ajouter l'authentification : vérifier la session au début de `run()`.
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { redirect, unstable_rethrow } from 'next/navigation';
 import { api, ApiError } from '@/lib/api';
 import { FLASH_COOKIE } from '@/lib/flash';
 import { fromLocalInput } from '@/lib/format';
@@ -24,6 +24,7 @@ async function run(
         const value = await task();
         result = typeof value === 'string' ? { message: value } : value;
     } catch (error) {
+        unstable_rethrow(error); // laisse passer les redirections (ex. session expirée)
         const message = error instanceof ApiError ? error.message : 'Une erreur inattendue est survenue';
         return { ok: false, message };
     }

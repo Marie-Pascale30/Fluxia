@@ -4,12 +4,15 @@ import { ActionButton } from '@/components/ui/ActionButton';
 import { ActivityTimeline, Badge, Card, Notice, PageHeader } from '@/components/ui';
 import { ReportEditor } from '@/features/reports/ReportEditor';
 import { api } from '@/lib/api';
+import { getCurrentUser } from '@/lib/current-user';
 import { orNotFound } from '@/lib/data';
 import { formatDate, formatMoney, LINE_KIND, providerLabel, QUOTE_STATUS, REPORT_STATUS } from '@/lib/format';
 
 export default async function ReportPage({ params }: PageProps<'/rapports/[id]'>) {
     const { id } = await params;
-    const [report, catalog] = await Promise.all([orNotFound(api.reports.get(id)), api.catalog()]);
+    const user = await getCurrentUser();
+    const manager = user.role === 'MANAGER';
+    const [report, catalog] = await Promise.all([orNotFound(api.reports.get(id)), manager ? api.catalog() : []]);
     const { intervention: i, billing } = report;
     const billableTotal = billing.lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0);
 
@@ -60,7 +63,7 @@ export default async function ReportPage({ params }: PageProps<'/rapports/[id]'>
                         <div className="email-body mt">{report.voiceNote}</div>
                     </details>
 
-                    {report.status === 'DRAFT' && (
+                    {manager && report.status === 'DRAFT' && (
                         <Card title="Corriger le brouillon">
                             <ReportEditor report={report} catalog={catalog} />
                         </Card>
@@ -106,12 +109,13 @@ export default async function ReportPage({ params }: PageProps<'/rapports/[id]'>
                             </>
                         )}
 
-                        {report.quote && (
+                        {manager && report.quote && (
                             <Notice tone="success" title="Devis préparé">
                                 <Link href={`/devis/${report.quote.id}`}>Devis {report.quote.number}</Link> — {QUOTE_STATUS[report.quote.status].label}
                             </Notice>
                         )}
 
+                        {manager && (
                         <div className="actions">
                             {billing.billable && !report.quote && (
                                 <ActionButton action={quoteFromReport.bind(null, id)} variant="ai" pendingLabel="Génération…">
@@ -137,7 +141,15 @@ export default async function ReportPage({ params }: PageProps<'/rapports/[id]'>
                                 Voir l&apos;intervention
                             </Link>
                         </div>
-                        {report.status === 'DRAFT' && (
+                        )}
+                        {!manager && (
+                            <div className="actions">
+                                <Link href={`/techniciens/${user.technicianId}`} className="btn light">
+                                    ← Mes missions
+                                </Link>
+                            </div>
+                        )}
+                        {manager && report.status === 'DRAFT' && (
                             <p className="muted small">Le rapport doit être validé avant d&apos;être envoyé au client.</p>
                         )}
                     </Card>

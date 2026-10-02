@@ -1,6 +1,9 @@
 // Client HTTP vers l'API NestJS — utilisé uniquement côté serveur
 // (Server Components et Server Actions), l'URL de l'API n'est jamais exposée au navigateur.
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
+import { SESSION_COOKIE, type SessionUser } from './session';
 import type {
     CatalogItem,
     ClientDetail,
@@ -35,19 +38,33 @@ export class ApiError extends Error {
     }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+interface RequestOptions extends RequestInit {
+    /** Appel sans jeton (connexion, portail public) : un 401 n'entraîne pas de redirection. */
+    anonymous?: boolean;
+}
+
+async function request<T>(path: string, { anonymous, ...init }: RequestOptions = {}): Promise<T> {
     // Données métier toujours fraîches : jamais de pré-rendu au build
     await connection();
+    const token = anonymous ? undefined : (await cookies()).get(SESSION_COOKIE)?.value;
+
     let response: Response;
     try {
         response = await fetch(`${API_URL}${path}`, {
             ...init,
             cache: 'no-store',
-            headers: { 'content-type': 'application/json', ...init?.headers },
+            headers: {
+                'content-type': 'application/json',
+                ...(token ? { authorization: `Bearer ${token}` } : {}),
+                ...init?.headers,
+            },
         });
     } catch {
         throw new ApiError(`API injoignable (${API_URL}). Lancez « npm run dev:api ».`, 503);
     }
+
+    // Session absente ou expirée : retour à l'écran de connexion
+    if (response.status === 401 && !anonymous) redirect('/login?expired=1');
 
     const body = await response.json().catch(() => null);
     if (!response.ok) {
@@ -68,7 +85,19 @@ const qs = (params: Record<string, string | undefined>) => {
     return s ? `?${s}` : '';
 };
 
+export interface LoginResult {
+    token: string;
+    expiresIn: number;
+    user: SessionUser;
+}
+
 export const api = {
+    auth: {
+        login: (email: string, password: string) =>
+            request<LoginResult>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }), anonymous: true }),
+        me: () => get<SessionUser>('/auth/me'),
+    },
+
     dashboard: () => get<Dashboard>('/dashboard'),
 
     requests: {

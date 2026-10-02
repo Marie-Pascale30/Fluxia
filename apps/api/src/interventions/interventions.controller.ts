@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Post, Query } from '@nestjs/common';
+import { Roles } from '../auth/decorators.js';
 import { parseDay } from '../common/dates.js';
 import {
     AssignInterventionDto,
@@ -53,11 +54,13 @@ export class InterventionsController {
 
     @Post(':id/start')
     @HttpCode(200)
+    @Roles('MANAGER', 'TECHNICIAN')
     start(@Param('id') id: string) {
         return this.interventions.start(id);
     }
 
     @Post(':id/report')
+    @Roles('MANAGER', 'TECHNICIAN')
     submitReport(@Param('id') id: string, @Body() dto: SubmitReportDto) {
         return this.interventions.submitReport(id, dto.voiceNote);
     }

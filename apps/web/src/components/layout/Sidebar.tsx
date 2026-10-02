@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import type { SessionUser } from '@/lib/session';
 
 export interface NavCounters {
     inbox: number;
@@ -37,9 +38,38 @@ const SECTIONS = [
     },
 ] as const;
 
-export function Sidebar({ counters, aiProvider }: { counters: NavCounters | null; aiProvider: string | null }) {
+export function Sidebar({
+    counters,
+    aiProvider,
+    user,
+}: {
+    counters: NavCounters | null;
+    aiProvider: string | null;
+    user: SessionUser;
+}) {
     const pathname = usePathname();
     const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
+
+    // Un technicien n'a accès qu'à sa vue terrain
+    if (user.role === 'TECHNICIAN') {
+        const href = `/techniciens/${user.technicianId}`;
+        return (
+            <aside className="side">
+                <Link href={href} className="brand">
+                    flux<span>ia</span>
+                </Link>
+                <nav>
+                    <div className="nav-section">Terrain</div>
+                    <Link href={href} className={`nav-item ${isActive(href) ? 'active' : ''}`}>
+                        <span className="icon" aria-hidden>
+                            ⚒
+                        </span>
+                        Mes missions
+                    </Link>
+                </nav>
+            </aside>
+        );
+    }
 
     return (
         <aside className="side">

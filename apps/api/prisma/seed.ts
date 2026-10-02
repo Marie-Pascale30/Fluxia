@@ -1,9 +1,13 @@
 // Données de démonstration — relatives à la date du jour.
 // Lancer : npm run db:reset (efface et recrée la base).
+import { hashPassword } from '../src/auth/password.js';
 import { addDays, atTime, fromZoned, startOfDay, zonedParts } from '../src/common/dates.js';
 import { PrismaClient, type EquipmentType, type InterventionType } from '../src/generated/prisma/client.js';
 
 const prisma = new PrismaClient();
+
+/** Mot de passe des comptes de démonstration (à changer en production). */
+const DEMO_PASSWORD = 'fluxia-demo';
 
 // Dates calculées dans le fuseau métier (APP_TIMEZONE)
 const today = startOfDay(new Date());
@@ -26,6 +30,7 @@ async function main() {
         prisma.equipment.deleteMany(),
         prisma.site.deleteMany(),
         prisma.client.deleteMany(),
+        prisma.user.deleteMany(),
         prisma.technician.deleteMany(),
         prisma.catalogItem.deleteMany(),
         prisma.counter.deleteMany(),
@@ -57,6 +62,15 @@ async function main() {
     const sophie = await prisma.technician.create({
         data: { firstName: 'Sophie', lastName: 'Dubois', email: 'sophie.dubois@fluxia.fr', phone: '06 34 56 78 90', skills: ['CLIMATISATION', 'CHAUFFAGE', 'VMC'], baseLat: 48.8925, baseLng: 2.2386 },
     });
+
+    // ── Comptes (mot de passe de démo commun) ────────────────────
+    const passwordHash = await hashPassword(DEMO_PASSWORD);
+    await prisma.user.create({ data: { email: 'julien@fluxia.fr', name: 'Julien Durand', role: 'MANAGER', passwordHash } });
+    for (const t of [thomas, marc, sophie]) {
+        await prisma.user.create({
+            data: { email: t.email, name: `${t.firstName} ${t.lastName}`, role: 'TECHNICIAN', technicianId: t.id, passwordHash },
+        });
+    }
 
     // ── Clients, sites, équipements, contrats ────────────────────
     const parisien = await prisma.client.create({

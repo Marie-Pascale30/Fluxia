@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Module, Param, Patch, Post } from '@nestjs/common';
+import { Roles } from '../auth/decorators.js';
 import { UpdateReportDto } from './reports.dto.js';
 import { ReportsService } from './reports.service.js';
 
@@ -12,6 +13,7 @@ class ReportsController {
     }
 
     @Get(':id')
+    @Roles('MANAGER', 'TECHNICIAN')
     get(@Param('id') id: string) {
         return this.reports.findOne(id);
     }

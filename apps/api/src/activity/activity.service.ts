@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { currentUser } from '../auth/auth.types.js';
 import type { ActivityActor } from '../common/domain.js';
 import { PrismaService, type Tx } from '../prisma/prisma.service.js';
 
@@ -24,8 +25,12 @@ export interface OutboundInput {
 export class ActivityService {
     constructor(private readonly prisma: PrismaService) {}
 
+    /** Trace une action ; l'auteur humain est déduit de l'utilisateur connecté. */
     log(input: ActivityInput, tx: Tx = this.prisma) {
-        return tx.activity.create({ data: input });
+        const user = currentUser();
+        const human = input.actor === 'USER' || input.actor === 'TECHNICIAN';
+        const actor = human && user?.role === 'TECHNICIAN' ? 'TECHNICIAN' : input.actor;
+        return tx.activity.create({ data: { ...input, actor, actorName: human ? (user?.name ?? null) : null } });
     }
 
     sendMessage(input: OutboundInput, tx: Tx = this.prisma) {

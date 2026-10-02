@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { ActivityTimeline, Badge, Card, EmptyState, Kpi, PageHeader, Row } from '@/components/ui';
 import { api } from '@/lib/api';
+import { getCurrentUser } from '@/lib/current-user';
 import { formatRelative, PRIORITY, providerLabel, QUOTE_STATUS, REPORT_STATUS } from '@/lib/format';
 import { PRIORITY_ORDER } from '@/lib/priority';
 
 export default async function HomePage() {
-    const [dashboard, requests, toSchedule, reports, quotes] = await Promise.all([
+    const [user, dashboard, requests, toSchedule, reports, quotes] = await Promise.all([
+        getCurrentUser(),
         api.dashboard(),
         api.requests.list(),
         api.interventions.list({ status: 'TO_SCHEDULE' }),
@@ -25,7 +27,7 @@ export default async function HomePage() {
     return (
         <>
             <PageHeader
-                title="Bonjour Julien 👋"
+                title={`Bonjour ${user.name.split(' ')[0]} 👋`}
                 subtitle="Un bureau administratif IA pour les entreprises de maintenance."
                 actions={
                     <Link href="/inbox/nouvelle" className="btn ai">

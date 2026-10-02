@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ActivityService } from '../activity/activity.service.js';
+import { assertInterventionAccess, currentUser } from '../auth/auth.types.js';
 import { AiService } from '../ai/ai.service.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { ClientsService } from '../clients/clients.service.js';
@@ -232,6 +233,7 @@ export class InterventionsService {
     }
 
     async start(id: string) {
+        assertInterventionAccess(currentUser(), (await this.get(id)).technicianId);
         const i = await this.transition(id, 'IN_PROGRESS');
         await this.activity.log({
             actor: 'TECHNICIAN',
@@ -246,6 +248,7 @@ export class InterventionsService {
     /** Compte rendu du technicien → rapport brouillon généré par l'IA + détection de facturation. */
     async submitReport(id: string, voiceNote: string) {
         let intervention = await this.get(id);
+        assertInterventionAccess(currentUser(), intervention.technicianId);
         if (intervention.status === 'DISPATCHED') {
             await this.start(id);
             intervention = await this.get(id);

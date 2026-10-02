@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ActivityService } from '../activity/activity.service.js';
+import { assertInterventionAccess, currentUser } from '../auth/auth.types.js';
 import type { ReportPart } from '../ai/ai.types.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { ClientsService } from '../clients/clients.service.js';
@@ -43,6 +44,7 @@ export class ReportsService {
 
     async findOne(id: string) {
         const report = await this.get(id);
+        assertInterventionAccess(currentUser(), report.intervention.technicianId);
         const [coverage, prices, timeline] = await Promise.all([
             this.clients.coverage(report.intervention.clientId, report.createdAt),
             this.catalog.priceMap(),
