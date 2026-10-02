@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { getCurrentUser } from '@/lib/current-user';
 import { runMaintenance } from '@/app/actions';
 import { ActionButton } from '@/components/ui/ActionButton';
-import { formatDate, formatRelative, PRIORITY, providerLabel, QUOTE_STATUS, REPORT_STATUS } from '@/lib/format';
+import { formatDate, formatMoney, formatRelative, PRIORITY, providerLabel, QUOTE_STATUS, REPORT_STATUS } from '@/lib/format';
 import { PRIORITY_ORDER } from '@/lib/priority';
 
 export default async function HomePage() {
@@ -44,7 +44,12 @@ export default async function HomePage() {
                 <Kpi label="Demandes à traiter" value={c.requestsPending} hint={c.urgentPending ? `dont ${c.urgentPending} urgente(s)` : `${c.requestsTotal} reçue(s) aujourd'hui`} href="/inbox" />
                 <Kpi label="Interventions" value={c.interventionsToday} hint={`aujourd'hui · ${c.toSchedule} à planifier`} href="/planning" />
                 <Kpi label="Rapports" value={c.reportsPending} hint="à valider / envoyer" href="/rapports" />
-                <Kpi label="Devis" value={c.quotesDraft} hint={`à valider · ${c.quotesSent} en attente client`} href="/devis" />
+                <Kpi
+                    label="Factures en retard"
+                    value={c.invoicesOverdue}
+                    hint={c.invoicesOverdue ? `${formatMoney(c.overdueCents)} à relancer` : `${c.invoicesDraft} brouillon(s) · ${c.quotesDraft} devis à valider`}
+                    href={c.invoicesOverdue ? '/factures?view=overdue' : '/factures'}
+                />
             </div>
 
             <div className="main-aside mt">

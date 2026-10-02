@@ -14,6 +14,7 @@ const LABELS: Record<string, string> = {
     rapports: 'Rapports',
     devis: 'Devis',
     factures: 'Factures',
+    export: 'Export',
     clients: 'Clients',
     catalogue: 'Catalogue',
     parametres: 'Paramètres',

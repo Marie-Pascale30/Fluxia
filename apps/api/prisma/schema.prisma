@@ -92,6 +92,20 @@ enum QuoteStatus {
   REFUSED
 }
 
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  TRANSFER
+  CHECK
+  CARD
+  CASH
+}
+
 enum QuoteLineKind {
   PART
   LABOR
@@ -163,6 +177,7 @@ model Client {
   requests      InboundRequest[]
   interventions Intervention[]
   quotes        Quote[]
+  invoices      Invoice[]
 }
 
 model Site {
@@ -319,6 +334,7 @@ model Intervention {
   report      Report?
   quotes      Quote[]
   attachments Attachment[]
+  invoices    Invoice[]
 
   @@index([technicianId, scheduledStart])
   @@index([status])
@@ -346,6 +362,7 @@ model Report {
 
   intervention Intervention @relation(fields: [interventionId], references: [id], onDelete: Cascade)
   quote        Quote?
+  invoice      Invoice?
 }
 
 model Quote {
@@ -376,6 +393,7 @@ model Quote {
   report       Report?         @relation(fields: [reportId], references: [id])
   request      InboundRequest? @relation(fields: [requestId], references: [id])
   lines        QuoteLine[]
+  invoice      Invoice?
 }
 
 model QuoteLine {
@@ -408,6 +426,52 @@ model Attachment {
   intervention Intervention @relation(fields: [interventionId], references: [id], onDelete: Cascade)
 
   @@index([interventionId])
+}
+
+// ─── Facturation ─────────────────────────────────────────────────
+
+/// Facture. Le numéro (continu, sans trou) n'est attribué qu'à l'émission ;
+/// une facture émise ne se supprime pas : elle s'annule par un avoir numéroté.
+model Invoice {
+  id               String         @id @default(cuid())
+  number           String?        @unique
+  status           InvoiceStatus  @default(DRAFT)
+  title            String
+  notes            String?
+  vatRate          Float          @default(0.2)
+  createdAt        DateTime       @default(now())
+  issuedAt         DateTime?
+  dueAt            DateTime?
+  paidAt           DateTime?
+  paymentMethod    PaymentMethod?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  creditNoteNumber String?        @unique
+
+  clientId       String
+  quoteId        String? @unique
+  interventionId String?
+  reportId       String? @unique
+
+  client       Client        @relation(fields: [clientId], references: [id])
+  quote        Quote?        @relation(fields: [quoteId], references: [id])
+  intervention Intervention? @relation(fields: [interventionId], references: [id])
+  report       Report?       @relation(fields: [reportId], references: [id])
+  lines        InvoiceLine[]
+
+  @@index([status, dueAt])
+}
+
+model InvoiceLine {
+  id             String        @id @default(cuid())
+  invoiceId      String
+  position       Int
+  kind           QuoteLineKind
+  label          String
+  quantity       Float
+  unitPriceCents Int
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
 
 // ─── Traçabilité ─────────────────────────────────────────────────

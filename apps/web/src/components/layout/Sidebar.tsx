@@ -11,6 +11,7 @@ export interface NavCounters {
     reports: number;
     quotes: number;
     failedMessages: number;
+    invoices: number;
 }
 
 const SECTIONS = [
@@ -34,6 +35,7 @@ const SECTIONS = [
         items: [
             { href: '/rapports', label: 'Rapports', icon: '▤', badge: 'reports' },
             { href: '/devis', label: 'Devis', icon: '€', badge: 'quotes' },
+            { href: '/factures', label: 'Factures', icon: '§', badge: 'invoices' },
             { href: '/clients', label: 'Clients', icon: '⌂' },
             { href: '/catalogue', label: 'Catalogue', icon: '☰' },
             { href: '/envois', label: 'Envois', icon: '➤', badge: 'failedMessages' },

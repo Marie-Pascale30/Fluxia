@@ -44,3 +44,5 @@ export type Capabilities = z.infer<typeof C.Capabilities>;
 export type PortalSummary = z.infer<typeof C.PortalSummary>;
 export type UpcomingMaintenance = z.infer<typeof C.UpcomingMaintenance>;
 export type MaintenanceRun = z.infer<typeof C.MaintenanceRun>;
+export type Invoice = z.infer<typeof C.Invoice>;
+export type InvoiceDetail = z.infer<typeof C.InvoiceDetail>;

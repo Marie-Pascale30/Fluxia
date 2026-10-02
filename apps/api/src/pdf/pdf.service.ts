@@ -87,6 +87,10 @@ export class PdfService implements OnModuleInit {
             content: await this.report(id),
             contentType: 'application/pdf',
         }));
+        this.outbox.registerAttachment('INVOICE_PDF', async (id) => {
+            const { filename, content } = await this.invoiceFile(id);
+            return { filename, content, contentType: 'application/pdf' };
+        });
         this.outbox.registerAttachment('QUOTE_PDF', async (id) => ({
             filename: `${(await this.prisma.quote.findUniqueOrThrow({ where: { id } })).number}.pdf`,
             content: await this.quote(id),
@@ -167,6 +171,89 @@ export class PdfService implements OnModuleInit {
 
         footer(doc, `${COMPANY.name} · Rapport d'intervention n°${i.number}`);
         return toBuffer(doc);
+    }
+
+    async invoiceFile(id: string) {
+        const invoice = await this.prisma.invoice.findUnique({
+            where: { id },
+            include: { client: { include: { sites: { take: 1 } } }, lines: { orderBy: { position: 'asc' } }, intervention: { include: { site: true } } },
+        });
+        if (!invoice) throw new NotFoundException('Facture introuvable');
+        const totals = quoteTotals(invoice.lines, invoice.vatRate);
+        const site = invoice.intervention?.site ?? invoice.client.sites[0];
+        const reference = invoice.number ?? 'BROUILLON';
+
+        const doc = new PDFDocument({ size: 'A4', margin: MARGIN, bufferPages: true, info: { Title: `Facture ${reference}` } });
+        header(doc, invoice.status === 'DRAFT' ? 'FACTURE (BROUILLON)' : 'FACTURE', reference, invoice.issuedAt ?? invoice.createdAt);
+
+        const top = doc.y;
+        const left = block(doc, MARGIN, top, 'Facturé à', [invoice.client.name, invoice.client.contactName ?? '', site?.address ?? '', site ? `${site.postalCode} ${site.city}` : '']);
+        const right = block(doc, 315, top, 'Détails', [
+            invoice.title,
+            invoice.dueAt ? `Échéance : ${formatShortDateFr(invoice.dueAt)}` : '',
+            invoice.intervention ? `Intervention n°${invoice.intervention.number}` : '',
+        ]);
+        doc.y = Math.max(left, right) + 18;
+
+        if (invoice.status === 'CANCELLED') {
+            doc.font('Helvetica-Bold').fontSize(11).fillColor('#b23b3b').text(`ANNULÉE — avoir ${invoice.creditNoteNumber}`, MARGIN);
+            doc.moveDown(0.5);
+        }
+
+        const cols = { label: MARGIN, qty: 330, unit: 390, total: 470 };
+        const row = (y: number, cells: [string, string, string, string], bold = false) => {
+            doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(9.5).fillColor(INK);
+            doc.text(cells[0], cols.label, y, { width: 270 });
+            const height = doc.y - y;
+            doc.text(cells[1], cols.qty, y, { width: 50, align: 'right' });
+            doc.text(cells[2], cols.unit, y, { width: 70, align: 'right' });
+            doc.text(cells[3], cols.total, y, { width: 75, align: 'right' });
+            return y + Math.max(height, 12) + 6;
+        };
+        let y = row(doc.y, ['Désignation', 'Qté', 'PU HT', 'Total HT'], true);
+        doc.moveTo(MARGIN, y - 3).lineTo(545, y - 3).strokeColor(LINE).stroke();
+        for (const line of invoice.lines) {
+            if (y > 720) {
+                doc.addPage();
+                y = MARGIN;
+            }
+            y = row(y, [line.label, String(line.quantity).replace('.', ','), money(line.unitPriceCents), money(Math.round(line.quantity * line.unitPriceCents))]);
+        }
+        doc.moveTo(330, y).lineTo(545, y).strokeColor(LINE).stroke();
+        y += 8;
+        for (const [label, value, bold] of [
+            ['Total HT', money(totals.totalHtCents), false],
+            [`TVA ${Math.round(invoice.vatRate * 100)} %`, money(totals.vatCents), false],
+            ['Net à payer TTC', money(totals.totalTtcCents), true],
+        ] as const) {
+            doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(bold ? 11 : 9.5).fillColor(INK);
+            doc.text(label, 300, y, { width: 160, align: 'right' });
+            doc.text(value, cols.total, y, { width: 75, align: 'right' });
+            y = doc.y + 4;
+        }
+        doc.y = y + 10;
+        if (invoice.status === 'PAID' && invoice.paidAt) {
+            doc.font('Helvetica-Bold').fontSize(10).fillColor('#28764b').text(`Acquittée le ${formatShortDateFr(invoice.paidAt)}`, MARGIN);
+        }
+        if (invoice.notes) section(doc, 'Remarques', invoice.notes);
+
+        // Mentions obligatoires
+        if (doc.y > 690) doc.addPage();
+        doc.moveDown(1).font('Helvetica').fontSize(7.5).fillColor(MUTED).text(
+            [
+                invoice.dueAt ? `Paiement à ${process.env.PAYMENT_TERMS_DAYS ?? 30} jours, au plus tard le ${formatShortDateFr(invoice.dueAt)}. Pas d'escompte pour paiement anticipé.` : '',
+                "En cas de retard de paiement : pénalités au taux de 3 fois le taux d'intérêt légal et indemnité forfaitaire pour frais de recouvrement de 40 € (art. L441-10 du Code de commerce).",
+                COMPANY.legal,
+            ]
+                .filter(Boolean)
+                .join('\n'),
+            MARGIN,
+            doc.y,
+            { width: 495 },
+        );
+
+        footer(doc, `${COMPANY.name} · Facture ${reference}`);
+        return { filename: `${invoice.number ?? 'facture-brouillon'}.pdf`, content: await toBuffer(doc) };
     }
 
     async quote(id: string): Promise<Buffer> {

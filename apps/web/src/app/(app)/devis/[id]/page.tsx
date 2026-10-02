@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { quoteTransition } from '@/app/actions';
+import { invoiceFromQuote, quoteTransition, saveQuote } from '@/app/actions';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { ActivityTimeline, Badge, Card, KeyValue, Notice, PageHeader } from '@/components/ui';
 import { MessageList } from '@/components/ui/MessageList';
-import { QuoteEditor } from '@/features/quotes/QuoteEditor';
+import { LinesEditor } from '@/features/documents/LinesEditor';
 import { api } from '@/lib/api';
 import { orNotFound } from '@/lib/data';
 import { formatDate, formatDateTime, formatMoney, LINE_KIND, QUOTE_STATUS } from '@/lib/format';
@@ -45,7 +45,14 @@ export default async function QuotePage({ params }: PageProps<'/devis/[id]'>) {
 
                     <Card title={draft ? 'Brouillon' : q.title}>
                         {draft ? (
-                            <QuoteEditor quote={q} catalog={catalog} />
+                            <LinesEditor
+                                document={q}
+                                catalog={catalog}
+                                save={saveQuote.bind(null, q.id)}
+                                validate={quoteTransition.bind(null, q.id, 'validate')}
+                                validateLabel="Valider le devis"
+                                dirtyValidateLabel="Enregistrer et valider"
+                            />
                         ) : (
                             <table className="table">
                                 <thead>
@@ -127,6 +134,11 @@ export default async function QuotePage({ params }: PageProps<'/devis/[id]'>) {
                                         Modifier
                                     </ActionButton>
                                 </>
+                            )}
+                            {q.status === 'ACCEPTED' && (
+                                <ActionButton action={invoiceFromQuote.bind(null, id)} variant="green" pendingLabel="Création…">
+                                    Créer la facture
+                                </ActionButton>
                             )}
                             {q.status === 'SENT' && (
                                 <>

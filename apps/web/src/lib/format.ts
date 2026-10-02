@@ -4,6 +4,8 @@ import type {
     EquipmentType,
     InterventionStatus,
     InterventionType,
+    InvoiceStatus,
+    PaymentMethod,
     Priority,
     QuoteLineKind,
     QuoteStatus,
@@ -163,6 +165,20 @@ export const QUOTE_STATUS: Record<QuoteStatus, Labelled> = {
     SENT: { label: 'Envoyé', tone: 'dark' },
     ACCEPTED: { label: 'Accepté', tone: 'green' },
     REFUSED: { label: 'Refusé', tone: 'red' },
+};
+
+export const INVOICE_STATUS: Record<InvoiceStatus, Labelled> = {
+    DRAFT: { label: 'Brouillon', tone: 'orange' },
+    ISSUED: { label: 'Émise', tone: 'blue' },
+    PAID: { label: 'Payée', tone: 'green' },
+    CANCELLED: { label: 'Annulée (avoir)' },
+};
+
+export const PAYMENT_METHOD: Record<PaymentMethod, string> = {
+    TRANSFER: 'Virement',
+    CHECK: 'Chèque',
+    CARD: 'Carte bancaire',
+    CASH: 'Espèces',
 };
 
 export const LINE_KIND: Record<QuoteLineKind, string> = {

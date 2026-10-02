@@ -394,8 +394,53 @@ export const Dashboard = z.object({
         quotesDraft: z.number().int(),
         quotesSent: z.number().int(),
         messagesFailed: z.number().int(),
+        invoicesDraft: z.number().int(),
+        invoicesOverdue: z.number().int(),
+        overdueCents: z.number().int(),
     }),
     activity: z.array(Activity),
+});
+
+// ─── Facturation ─────────────────────────────────────────────────
+
+export const InvoiceLine = z.object({
+    id,
+    position: z.number().int(),
+    kind: z.enum(D.QUOTE_LINE_KINDS),
+    label: z.string(),
+    quantity: z.number(),
+    unitPriceCents: z.number().int(),
+});
+
+export const Invoice = z.object({
+    id,
+    number: z.string().nullable(),
+    status: z.enum(D.INVOICE_STATUSES),
+    title: z.string(),
+    notes: z.string().nullable(),
+    vatRate: z.number(),
+    createdAt: date,
+    issuedAt: date.nullable(),
+    dueAt: date.nullable(),
+    paidAt: date.nullable(),
+    paymentMethod: z.enum(D.PAYMENT_METHODS).nullable(),
+    cancelledAt: date.nullable(),
+    cancelReason: z.string().nullable(),
+    creditNoteNumber: z.string().nullable(),
+    clientId: id,
+    client: Client,
+    lines: z.array(InvoiceLine),
+    quote: Ref({ number: z.string() }).nullable(),
+    intervention: Ref({ number: z.number().int(), title: z.string() }).nullable(),
+    totalHtCents: z.number().int(),
+    vatCents: z.number().int(),
+    totalTtcCents: z.number().int(),
+    overdue: z.boolean(),
+});
+
+export const InvoiceDetail = Invoice.extend({
+    timeline: z.array(Activity),
+    messages: z.array(OutboundMessage),
 });
 
 // ─── Portail client (accès public par lien signé) ───────────────

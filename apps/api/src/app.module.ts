@@ -11,6 +11,7 @@ import { ClientsModule } from './clients/clients.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { GeoModule } from './geo/geo.service.js';
 import { InterventionsModule } from './interventions/interventions.module.js';
+import { InvoicesModule } from './invoices/invoices.module.js';
 import { MaintenanceModule } from './maintenance/maintenance.module.js';
 import { MessagingModule } from './messaging/messaging.module.js';
 import { PdfModule } from './pdf/pdf.module.js';
@@ -59,6 +60,7 @@ class HealthController {
         PdfModule,
         PortalModule,
         MaintenanceModule,
+        InvoicesModule,
     ],
     controllers: [HealthController],
 })

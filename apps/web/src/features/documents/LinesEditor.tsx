@@ -2,10 +2,23 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useState, useTransition } from 'react';
-import { quoteTransition, saveQuote } from '@/app/actions';
+import type { ActionResult } from '@/app/actions';
 import { useToast } from '@/components/ui/Toast';
 import { formatMoney, LINE_KIND } from '@/lib/format';
-import type { CatalogItem, QuoteDetail, QuoteLineKind } from '@/lib/types';
+import type { CatalogItem, QuoteLineKind } from '@/lib/types';
+
+export interface EditableDocument {
+    title: string;
+    notes: string | null;
+    vatRate: number;
+    lines: { kind: QuoteLineKind; label: string; quantity: number; unitPriceCents: number; catalogCode?: string | null }[];
+}
+
+export interface DocumentData {
+    title: string;
+    notes: string;
+    lines: { kind: string; label: string; quantity: number; unitPriceCents: number; catalogCode?: string }[];
+}
 
 interface EditableLine {
     key: number;
@@ -19,8 +32,25 @@ interface EditableLine {
 const toCents = (euros: string) => Math.round(Number(euros.replace(',', '.')) * 100) || 0;
 let nextKey = 1;
 
-/** Éditeur de devis brouillon : lignes, prix et totaux calculés en direct. */
-export function QuoteEditor({ quote, catalog }: { quote: QuoteDetail; catalog: CatalogItem[] }) {
+/**
+ * Éditeur de document brouillon (devis, facture) : lignes, prix et totaux calculés en direct.
+ * `save` et `validate` sont des Server Actions déjà liées au document.
+ */
+export function LinesEditor({
+    document: quote,
+    catalog,
+    save: saveAction,
+    validate: validateAction,
+    validateLabel,
+    dirtyValidateLabel,
+}: {
+    document: EditableDocument;
+    catalog: CatalogItem[];
+    save: (data: DocumentData) => Promise<ActionResult>;
+    validate: () => Promise<ActionResult>;
+    validateLabel: string;
+    dirtyValidateLabel: string;
+}) {
     const toast = useToast();
     const router = useRouter();
     const [pending, startTransition] = useTransition();
@@ -65,7 +95,7 @@ export function QuoteEditor({ quote, catalog }: { quote: QuoteDetail; catalog: C
     };
 
     const persist = () =>
-        saveQuote(quote.id, {
+        saveAction({
                 title,
                 notes,
                 lines: lines.map((l) => ({
@@ -95,7 +125,7 @@ export function QuoteEditor({ quote, catalog }: { quote: QuoteDetail; catalog: C
                 if (!saved.ok) return toast(saved.message, 'error');
                 setDirty(false);
             }
-            const result = await quoteTransition(quote.id, 'validate');
+            const result = await validateAction();
             if (!result.ok) toast(result.message, 'error');
             router.refresh();
         });
@@ -213,7 +243,7 @@ export function QuoteEditor({ quote, catalog }: { quote: QuoteDetail; catalog: C
                     disabled={pending || lines.length === 0 || missingPrice}
                     title={missingPrice ? 'Complétez les prix manquants' : undefined}
                 >
-                    {pending ? 'Patientez…' : dirty ? 'Enregistrer et valider' : 'Valider le devis'}
+                    {pending ? 'Patientez…' : dirty ? dirtyValidateLabel : validateLabel}
                 </button>
                 {dirty && <span className="dirty-hint">● Modifications non enregistrées</span>}
             </div>

@@ -18,6 +18,7 @@ async function loadNav(user: SessionUser): Promise<{ counters: NavCounters | nul
                 reports: counters.reportsPending,
                 quotes: counters.quotesDraft,
                 failedMessages: counters.messagesFailed,
+                invoices: counters.invoicesDraft + counters.invoicesOverdue,
             },
         };
     } catch {

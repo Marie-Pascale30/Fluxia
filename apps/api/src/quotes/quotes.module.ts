@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Global, HttpCode, Module, NotFoundException, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Global, HttpCode, Module, Param, Patch, Post, Query } from '@nestjs/common';
 import { ListQuotesQuery, UpdateQuoteDto } from './quotes.dto.js';
 import { QuotesService } from './quotes.service.js';
 
@@ -21,23 +21,35 @@ class QuotesController {
         return this.quotes.update(id, dto);
     }
 
-    @Post(':id/:transition')
+    // Transitions explicites (une route générique ":id/:transition" masquerait d'autres routes)
+    @Post(':id/validate')
     @HttpCode(200)
-    transition(@Param('id') id: string, @Param('transition') transition: string) {
-        switch (transition) {
-            case 'validate':
-                return this.quotes.validate(id);
-            case 'reopen':
-                return this.quotes.reopen(id);
-            case 'send':
-                return this.quotes.send(id);
-            case 'accept':
-                return this.quotes.accept(id);
-            case 'refuse':
-                return this.quotes.refuse(id);
-            default:
-                throw new NotFoundException(`Transition inconnue : ${transition}`);
-        }
+    validate(@Param('id') id: string) {
+        return this.quotes.validate(id);
+    }
+
+    @Post(':id/reopen')
+    @HttpCode(200)
+    reopen(@Param('id') id: string) {
+        return this.quotes.reopen(id);
+    }
+
+    @Post(':id/send')
+    @HttpCode(200)
+    send(@Param('id') id: string) {
+        return this.quotes.send(id);
+    }
+
+    @Post(':id/accept')
+    @HttpCode(200)
+    accept(@Param('id') id: string) {
+        return this.quotes.accept(id);
+    }
+
+    @Post(':id/refuse')
+    @HttpCode(200)
+    refuse(@Param('id') id: string) {
+        return this.quotes.refuse(id);
     }
 }
 

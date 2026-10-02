@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { quoteFromReport, reopenReport, sendReport, validateReport } from '@/app/actions';
+import { invoiceFromReport, quoteFromReport, reopenReport, sendReport, validateReport } from '@/app/actions';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { ActivityTimeline, Badge, Card, Notice, PageHeader } from '@/components/ui';
 import { PhotoGallery, SignatureView } from '@/features/field/PhotoGallery';
@@ -133,6 +133,11 @@ export default async function ReportPage({ params }: PageProps<'/rapports/[id]'>
 
                         {manager && (
                         <div className="actions">
+                            {billing.billable && !report.quote && report.status !== 'DRAFT' && (
+                                <ActionButton action={invoiceFromReport.bind(null, id)} variant="green" pendingLabel="Création…" title="Sans devis : facture directe des éléments hors contrat">
+                                    Facturer directement
+                                </ActionButton>
+                            )}
                             {billing.billable && !report.quote && (
                                 <ActionButton action={quoteFromReport.bind(null, id)} variant="ai" pendingLabel="Génération…">
                                     ✨ Générer le brouillon de devis

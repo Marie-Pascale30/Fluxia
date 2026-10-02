@@ -15,6 +15,9 @@ import type {
     InboundRequestDetail,
     Intervention,
     InterventionDetail,
+    Invoice,
+    InvoiceDetail,
+    InvoiceStatus,
     MaintenanceRun,
     UpcomingMaintenance,
     InterventionStatus,
@@ -157,6 +160,19 @@ export const api = {
     },
 
     capabilities: () => get<Capabilities>('/capabilities'),
+
+    invoices: {
+        list: (params: { status?: InvoiceStatus; overdue?: boolean } = {}) =>
+            get<Invoice[]>(`/invoices${qs({ status: params.status, overdue: params.overdue ? 'true' : undefined })}`),
+        get: (id: string) => get<InvoiceDetail>(`/invoices/${id}`),
+        fromQuote: (quoteId: string) => post<InvoiceDetail>(`/quotes/${quoteId}/invoice`),
+        fromReport: (reportId: string) => post<InvoiceDetail>(`/reports/${reportId}/invoice`),
+        update: (id: string, data: object) => patch<InvoiceDetail>(`/invoices/${id}`, data),
+        remove: (id: string) => del<unknown>(`/invoices/${id}`),
+        issue: (id: string) => post<InvoiceDetail>(`/invoices/${id}/issue`),
+        pay: (id: string, data: { method: string; paidAt?: string }) => post<InvoiceDetail>(`/invoices/${id}/pay`, data),
+        cancel: (id: string, reason: string) => post<InvoiceDetail>(`/invoices/${id}/cancel`, { reason }),
+    },
 
     maintenance: {
         upcoming: (days = 60) => get<UpcomingMaintenance>(`/maintenance/upcoming${qs({ days: String(days) })}`),

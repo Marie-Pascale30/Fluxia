@@ -4,6 +4,7 @@ import { AiService } from '../ai/ai.service.js';
 import { endOfDay, startOfDay } from '../common/dates.js';
 import { PLANNED_STATUSES } from '../common/domain.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { quoteTotals } from '../reports/billing.js';
 
 @Injectable()
 class DashboardService {
@@ -27,6 +28,8 @@ class DashboardService {
             quotesDraft,
             quotesSent,
             messagesFailed,
+            invoicesDraft,
+            overdue,
             activity,
         ] = await Promise.all([
             this.prisma.inboundRequest.count({ where: { receivedAt: today } }),
@@ -39,6 +42,8 @@ class DashboardService {
             this.prisma.quote.count({ where: { status: { in: ['DRAFT', 'VALIDATED'] } } }),
             this.prisma.quote.count({ where: { status: 'SENT' } }),
             this.prisma.outboundMessage.count({ where: { status: 'FAILED' } }),
+            this.prisma.invoice.count({ where: { status: 'DRAFT' } }),
+            this.prisma.invoice.findMany({ where: { status: 'ISSUED', dueAt: { lt: now } }, include: { lines: true } }),
             this.activity.recent(8),
         ]);
 
@@ -55,6 +60,9 @@ class DashboardService {
                 quotesDraft,
                 quotesSent,
                 messagesFailed,
+                invoicesDraft,
+                invoicesOverdue: overdue.length,
+                overdueCents: overdue.reduce((s, i) => s + quoteTotals(i.lines, i.vatRate).totalTtcCents, 0),
             },
             activity,
         };

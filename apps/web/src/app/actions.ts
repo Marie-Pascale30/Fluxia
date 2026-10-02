@@ -492,3 +492,55 @@ export async function runMaintenance() {
             : 'Aucun nouvel entretien : tout est déjà programmé';
     });
 }
+
+// ─── Facturation ────────────────────────────────────────────────
+
+export async function invoiceFromQuote(quoteId: string) {
+    return run(async () => {
+        const invoice = await api.invoices.fromQuote(quoteId);
+        return { message: 'Facture brouillon créée', redirectTo: `/factures/${invoice.id}` };
+    });
+}
+
+export async function invoiceFromReport(reportId: string) {
+    return run(async () => {
+        const invoice = await api.invoices.fromReport(reportId);
+        return { message: 'Facture brouillon créée', redirectTo: `/factures/${invoice.id}` };
+    });
+}
+
+export async function saveInvoice(id: string, data: { title: string; notes: string; lines: { kind: string; label: string; quantity: number; unitPriceCents: number }[] }) {
+    return run(async () => {
+        await api.invoices.update(id, { title: data.title, notes: data.notes, lines: data.lines.map(({ kind, label, quantity, unitPriceCents }) => ({ kind, label, quantity, unitPriceCents })) });
+        return 'Facture enregistrée';
+    });
+}
+
+export async function issueInvoice(id: string) {
+    return run(async () => {
+        const invoice = await api.invoices.issue(id);
+        return `Facture ${invoice.number} émise et envoyée au client`;
+    });
+}
+
+export async function deleteInvoice(id: string) {
+    return run(async () => {
+        await api.invoices.remove(id);
+        return { message: 'Brouillon supprimé', redirectTo: '/factures' };
+    });
+}
+
+export async function payInvoice(id: string, _: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        const date = str(form, 'paidAt');
+        await api.invoices.pay(id, { method: str(form, 'method') ?? 'TRANSFER', paidAt: date ? new Date(`${date}T12:00:00Z`).toISOString() : undefined });
+        return 'Règlement enregistré';
+    });
+}
+
+export async function cancelInvoice(id: string, _: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        const invoice = await api.invoices.cancel(id, str(form, 'reason') ?? '');
+        return `Facture annulée par l'avoir ${invoice.creditNoteNumber}`;
+    });
+}

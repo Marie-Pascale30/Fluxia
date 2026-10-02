@@ -23,6 +23,8 @@ export const ACTIVITY_ACTORS = ['AI', 'USER', 'TECHNICIAN', 'SYSTEM'] as const;
 export const MESSAGE_CHANNELS = ['EMAIL', 'SMS', 'PUSH'] as const;
 export const MESSAGE_STATUSES = ['PENDING', 'SENT', 'FAILED'] as const;
 export const ATTACHMENT_KINDS = ['PHOTO', 'SIGNATURE', 'AUDIO'] as const;
+export const INVOICE_STATUSES = ['DRAFT', 'ISSUED', 'PAID', 'CANCELLED'] as const;
+export const PAYMENT_METHODS = ['TRANSFER', 'CHECK', 'CARD', 'CASH'] as const;
 
 export type EquipmentType = (typeof EQUIPMENT_TYPES)[number];
 export type Priority = (typeof PRIORITIES)[number];
@@ -39,3 +41,5 @@ export type Actor = (typeof ACTIVITY_ACTORS)[number];
 export type MessageChannel = (typeof MESSAGE_CHANNELS)[number];
 export type MessageStatus = (typeof MESSAGE_STATUSES)[number];
 export type AttachmentKind = (typeof ATTACHMENT_KINDS)[number];
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
