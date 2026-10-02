@@ -6,6 +6,7 @@ import { MessageList } from '@/components/ui/MessageList';
 import { CancelForm } from '@/features/interventions/CancelForm';
 import { ManualAssignForm } from '@/features/interventions/ManualAssignForm';
 import { Recommendations } from '@/features/interventions/Recommendations';
+import { PhotoGallery, SignatureView } from '@/features/field/PhotoGallery';
 import { interventionSteps } from '@/features/interventions/steps';
 import { api } from '@/lib/api';
 import { orNotFound } from '@/lib/data';
@@ -96,6 +97,13 @@ export default async function InterventionPage({ params }: PageProps<'/intervent
                             </div>
                         )}
                     </Card>
+
+                    {(i.attachments.length > 0 || i.signedBy) && (
+                        <Card title="Photos & signature">
+                            <PhotoGallery attachments={i.attachments} />
+                            <SignatureView attachments={i.attachments} signedBy={i.signedBy} signedAt={i.signedAt} />
+                        </Card>
+                    )}
 
                     {(i.report || i.quotes.length > 0) && (
                         <Card title="Documents">

@@ -1164,3 +1164,63 @@ details summary {
     font-weight: 700;
     font-size: 12px;
 }
+
+/* ─── Photos & signature ────────────────────────────────────── */
+.gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    margin: 8px 0;
+}
+
+.gallery figure {
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.gallery img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    background: var(--grey-soft);
+}
+
+.gallery figcaption {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    font-size: 11.5px;
+    color: var(--muted);
+}
+
+.signature-pad {
+    width: 100%;
+    max-width: 520px;
+    height: 170px;
+    border: 1px dashed #b7c0cc;
+    border-radius: 10px;
+    background: #fff;
+    touch-action: none;
+    cursor: crosshair;
+}
+
+.signature-view img {
+    max-width: 260px;
+    max-height: 100px;
+    display: block;
+    margin: 8px 0 4px;
+}
+
+label.btn input[type='file'] {
+    display: none;
+}
+
+.btn.disabled {
+    opacity: 0.45;
+    pointer-events: none;
+}

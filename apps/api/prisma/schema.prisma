@@ -117,6 +117,12 @@ enum MessageChannel {
   PUSH
 }
 
+enum AttachmentKind {
+  PHOTO
+  SIGNATURE
+  AUDIO
+}
+
 enum MessageStatus {
   PENDING
   SENT
@@ -285,6 +291,9 @@ model Intervention {
   completedAt      DateTime?
   closedAt         DateTime?
   cancelledReason  String?
+  /// Signature du client en fin d'intervention
+  signedBy         String?
+  signedAt         DateTime?
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -299,8 +308,9 @@ model Intervention {
   equipment  Equipment?      @relation(fields: [equipmentId], references: [id])
   technician Technician?     @relation(fields: [technicianId], references: [id])
   request    InboundRequest? @relation(fields: [requestId], references: [id])
-  report     Report?
-  quotes     Quote[]
+  report      Report?
+  quotes      Quote[]
+  attachments Attachment[]
 
   @@index([technicianId, scheduledStart])
   @@index([status])
@@ -368,6 +378,25 @@ model QuoteLine {
   catalogCode    String?
 
   quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+}
+
+/// Fichiers liés à une intervention (photos, signature, enregistrement audio).
+/// Le contenu est stocké hors base (StorageService) sous `storageKey`.
+model Attachment {
+  id             String         @id @default(cuid())
+  interventionId String
+  kind           AttachmentKind
+  filename       String
+  mimeType       String
+  size           Int
+  storageKey     String         @unique
+  caption        String?
+  uploadedBy     String?
+  createdAt      DateTime       @default(now())
+
+  intervention Intervention @relation(fields: [interventionId], references: [id], onDelete: Cascade)
+
+  @@index([interventionId])
 }
 
 // ─── Traçabilité ─────────────────────────────────────────────────

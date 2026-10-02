@@ -39,3 +39,5 @@ export type QuoteDetail = z.infer<typeof C.QuoteDetail>;
 export type Dashboard = z.infer<typeof C.Dashboard>;
 export type ReplyDraft = z.infer<typeof C.ReplyDraft>;
 export type MessageLog = z.infer<typeof C.MessageLog>;
+export type Attachment = z.infer<typeof C.Attachment>;
+export type Capabilities = z.infer<typeof C.Capabilities>;

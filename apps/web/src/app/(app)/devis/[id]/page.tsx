@@ -20,7 +20,14 @@ export default async function QuotePage({ params }: PageProps<'/devis/[id]'>) {
             <PageHeader
                 title={`Devis ${q.number}`}
                 subtitle={`${q.client.name} · créé le ${formatDate(q.createdAt)}`}
-                actions={<Badge {...QUOTE_STATUS[q.status]} />}
+                actions={
+                    <>
+                        <a className="btn light sm" href={`/pdf/devis/${q.id}`} target="_blank" rel="noreferrer">
+                            PDF
+                        </a>
+                        <Badge {...QUOTE_STATUS[q.status]} />
+                    </>
+                }
             />
 
             <div className="main-aside">

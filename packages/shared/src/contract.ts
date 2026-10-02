@@ -120,6 +120,19 @@ export const MessageLog = z.object({
     messages: z.array(OutboundMessage.extend({ entityType: z.string(), entityId: z.string() })),
 });
 
+export const Attachment = z.object({
+    id,
+    kind: z.enum(D.ATTACHMENT_KINDS),
+    filename: z.string(),
+    mimeType: z.string(),
+    size: z.number().int(),
+    caption: z.string().nullable(),
+    uploadedBy: z.string().nullable(),
+    createdAt: date,
+});
+
+export const Capabilities = z.object({ transcription: z.boolean() });
+
 // ─── Interventions ───────────────────────────────────────────────
 
 const InterventionBase = z.object({
@@ -139,6 +152,8 @@ const InterventionBase = z.object({
     completedAt: date.nullable(),
     closedAt: date.nullable(),
     cancelledReason: z.string().nullable(),
+    signedBy: z.string().nullable(),
+    signedAt: date.nullable(),
     createdAt: date,
     clientId: id,
     siteId: id,
@@ -188,6 +203,7 @@ export const InterventionDetail = Intervention.extend({
     coverage: Coverage,
     timeline: z.array(Activity),
     messages: z.array(OutboundMessage),
+    attachments: z.array(Attachment),
 });
 
 export const Mission = InterventionBase.extend({
@@ -195,6 +211,7 @@ export const Mission = InterventionBase.extend({
     site: Site,
     equipment: Equipment.nullable(),
     report: Ref({ status: z.enum(D.REPORT_STATUSES) }).nullable(),
+    attachments: z.array(Attachment),
 });
 
 export const TechnicianWithLoad = Technician.extend({
@@ -287,7 +304,7 @@ export const BillableLine = z.object({
 const QuoteRef = Ref({ number: z.string(), status: z.enum(D.QUOTE_STATUSES) });
 
 export const ReportDetail = Report.extend({
-    intervention: Intervention.extend({ equipment: Equipment.nullable() }),
+    intervention: Intervention.extend({ equipment: Equipment.nullable(), attachments: z.array(Attachment) }),
     quote: QuoteRef.nullable(),
     coverage: Coverage,
     billing: z.object({

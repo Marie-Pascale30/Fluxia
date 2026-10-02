@@ -8,6 +8,7 @@ const missionInclude = {
     site: true,
     equipment: true,
     report: { select: { id: true, status: true } },
+    attachments: { orderBy: { createdAt: 'asc' }, select: { id: true, kind: true, filename: true, mimeType: true, size: true, caption: true, uploadedBy: true, createdAt: true } },
 } as const;
 
 @Injectable()

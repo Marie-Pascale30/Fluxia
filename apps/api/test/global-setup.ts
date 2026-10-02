@@ -29,6 +29,9 @@ export default async function setup() {
         SMTP_URL: '',
         TWILIO_ACCOUNT_SID: '',
         IMAP_URL: '',
+        UPLOAD_DIR: 'storage-test',
+        LOGIN_RATE_LIMIT: '1000',
+        TRANSCRIPTION_URL: '',
         ANTHROPIC_API_KEY: '',
         PORT: String(E2E_PORT),
     };

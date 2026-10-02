@@ -68,7 +68,7 @@ class AuthController {
     @Post('login')
     @HttpCode(200)
     @UseGuards(ThrottlerGuard)
-    @Throttle({ default: { limit: 10, ttl: 60_000 } })
+    @Throttle({ default: { limit: Number(process.env.LOGIN_RATE_LIMIT ?? 10), ttl: 60_000 } })
     login(@Body() dto: LoginDto) {
         return this.auth.login(dto.email, dto.password);
     }

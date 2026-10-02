@@ -15,3 +15,8 @@ next-env.d.ts
 
 # Client Prisma généré
 apps/api/src/generated/
+
+# Fichiers déposés (photos, signatures…)
+apps/api/storage/
+apps/api/storage-test/
+apps/api/dist-e2e/

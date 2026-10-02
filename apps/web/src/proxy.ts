@@ -6,7 +6,7 @@ import { homeFor, readClaims, SESSION_COOKIE } from '@/lib/session';
 // L'autorisation réelle reste appliquée par l'API à chaque requête.
 
 const PUBLIC_PATHS = ['/login', '/portail'];
-const TECHNICIAN_PATHS = (tid: string) => [`/techniciens/${tid}`, '/rapports/'];
+const TECHNICIAN_PATHS = (tid: string) => [`/techniciens/${tid}`, '/rapports/', '/files/', '/pdf/rapport/'];
 
 export function proxy(request: NextRequest) {
     const { pathname, search } = request.nextUrl;

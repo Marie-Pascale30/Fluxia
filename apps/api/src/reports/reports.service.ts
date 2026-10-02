@@ -34,7 +34,7 @@ export class ReportsService {
         const report = await this.prisma.report.findUnique({
             where: { id },
             include: {
-                intervention: { include: { client: true, site: true, equipment: true, technician: true } },
+                intervention: { include: { client: true, site: true, equipment: true, technician: true, attachments: { orderBy: { createdAt: 'asc' }, select: { id: true, kind: true, filename: true, mimeType: true, size: true, caption: true, uploadedBy: true, createdAt: true } } } },
                 quote: { select: { id: true, number: true, status: true } },
             },
         });
@@ -123,7 +123,8 @@ export class ReportsService {
                     {
                         recipient: intervention.client.email,
                         subject: `Rapport d'intervention #${intervention.number}`,
-                        body: `Bonjour,\n\nVoici le rapport de l'intervention du ${formatShortDateFr(report.createdAt)}.\n\nDiagnostic : ${report.diagnosis}\nTravaux : ${report.workDone}\nRésultat : ${report.result}${report.recommendation ? `\nRecommandation : ${report.recommendation}` : ''}\n\nCordialement,\nL'équipe maintenance`,
+                        attachments: [{ kind: 'REPORT_PDF', id }],
+                        body: `Bonjour,\n\nVeuillez trouver ci-joint le rapport de l'intervention du ${formatShortDateFr(report.createdAt)}.\n\nDiagnostic : ${report.diagnosis}\nTravaux : ${report.workDone}\nRésultat : ${report.result}${report.recommendation ? `\nRecommandation : ${report.recommendation}` : ''}\n\nCordialement,\nL'équipe maintenance`,
                         entityType: 'REPORT',
                         entityId: id,
                     },

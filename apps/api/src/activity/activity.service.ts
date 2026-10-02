@@ -35,8 +35,8 @@ export class ActivityService {
         return tx.activity.create({ data: { ...input, actor, actorName: human ? (user?.name ?? null) : null } });
     }
 
-    sendMessage(input: OutboundInput, tx: Tx = this.prisma) {
-        return tx.outboundMessage.create({ data: { channel: 'EMAIL', ...input } });
+    sendMessage({ attachments, ...input }: OutboundInput, tx: Tx = this.prisma) {
+        return tx.outboundMessage.create({ data: { channel: 'EMAIL', ...input, attachments: attachments ?? [] } });
     }
 
     recent(limit = 15) {

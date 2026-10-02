@@ -2,6 +2,9 @@ import Link from 'next/link';
 import { startIntervention } from '@/app/actions';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { Avatar, Badge, Card, EmptyState, KeyValue, Notice, PageHeader } from '@/components/ui';
+import { PhotoGallery, SignatureView } from '@/features/field/PhotoGallery';
+import { PhotoUploader } from '@/features/field/PhotoUploader';
+import { SignaturePad } from '@/features/field/SignaturePad';
 import { VoiceReportForm } from '@/features/technicians/VoiceReportForm';
 import { api } from '@/lib/api';
 import { orNotFound } from '@/lib/data';
@@ -11,8 +14,9 @@ import type { Mission } from '@/lib/types';
 const mapsUrl = (m: Mission) =>
     `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${m.site.address}, ${m.site.postalCode} ${m.site.city}`)}`;
 
-function MissionCard({ mission: m }: { mission: Mission }) {
+function MissionCard({ mission: m, serverTranscription }: { mission: Mission; serverTranscription: boolean }) {
     const active = m.status === 'DISPATCHED' || m.status === 'IN_PROGRESS';
+    const onSite = m.status === 'IN_PROGRESS' || m.status === 'COMPLETED';
 
     return (
         <Card>
@@ -48,11 +52,34 @@ function MissionCard({ mission: m }: { mission: Mission }) {
                 </div>
             )}
 
+            {(onSite || m.attachments.some((a) => a.kind === 'PHOTO')) && (
+                <div className="mt">
+                    <h3>Photos</h3>
+                    <PhotoGallery attachments={m.attachments} editable={onSite} />
+                    {onSite && (
+                        <div className="mt">
+                            <PhotoUploader interventionId={m.id} />
+                        </div>
+                    )}
+                </div>
+            )}
+
             {active && (
                 <div className="mt">
                     <h3>Compte rendu</h3>
                     <p className="muted">Parlez naturellement : Fluxia transforme votre note en rapport client et détecte ce qui est facturable.</p>
-                    <VoiceReportForm interventionId={m.id} />
+                    <VoiceReportForm interventionId={m.id} serverTranscription={serverTranscription} />
+                </div>
+            )}
+
+            {onSite && (
+                <div className="mt">
+                    <h3>Signature du client</h3>
+                    {m.signedBy ? (
+                        <SignatureView attachments={m.attachments} signedBy={m.signedBy} signedAt={m.signedAt} />
+                    ) : (
+                        <SignaturePad interventionId={m.id} defaultName={m.client.contactName ?? ''} />
+                    )}
                 </div>
             )}
 
@@ -72,7 +99,7 @@ export default async function TechnicianPage({ params, searchParams }: PageProps
     const raw = (await searchParams).date;
     const today = dayKey();
     const date = typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : today;
-    const technician = await orNotFound(api.technicians.get(id, date));
+    const [technician, capabilities] = await Promise.all([orNotFound(api.technicians.get(id, date)), api.capabilities()]);
     const dayLabel = date === today ? "aujourd'hui" : formatLongDay(`${date}T12:00:00`);
     const pending = technician.missions.filter((m) => m.status !== 'COMPLETED' && m.status !== 'CLOSED');
     const done = technician.missions.length - pending.length;
@@ -108,7 +135,7 @@ export default async function TechnicianPage({ params, searchParams }: PageProps
                     </Card>
                 )}
                 {pending.map((m) => (
-                    <MissionCard key={m.id} mission={m} />
+                    <MissionCard key={m.id} mission={m} serverTranscription={capabilities.transcription} />
                 ))}
                 {done > 0 && (
                     <details>
@@ -117,7 +144,7 @@ export default async function TechnicianPage({ params, searchParams }: PageProps
                             {technician.missions
                                 .filter((m) => m.status === 'COMPLETED' || m.status === 'CLOSED')
                                 .map((m) => (
-                                    <MissionCard key={m.id} mission={m} />
+                                    <MissionCard key={m.id} mission={m} serverTranscription={capabilities.transcription} />
                                 ))}
                         </div>
                     </details>

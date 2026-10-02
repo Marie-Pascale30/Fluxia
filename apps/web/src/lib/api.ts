@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { SESSION_COOKIE, type SessionUser } from './session';
 import type {
+    Attachment,
+    Capabilities,
     CatalogItem,
     ClientDetail,
     ClientSummary,
@@ -58,7 +60,8 @@ async function request<T>(path: string, { anonymous, ...init }: RequestOptions =
             ...init,
             cache: 'no-store',
             headers: {
-                'content-type': 'application/json',
+                // FormData : le navigateur/fetch fixe lui-même le type multipart et sa frontière
+                ...(init.body instanceof FormData ? {} : { 'content-type': 'application/json' }),
                 ...(token ? { authorization: `Bearer ${token}` } : {}),
                 ...init?.headers,
             },
@@ -83,6 +86,7 @@ const post = <T>(path: string, data?: unknown) =>
     request<T>(path, { method: 'POST', body: data ? JSON.stringify(data) : undefined });
 const patch = <T>(path: string, data: unknown) => request<T>(path, { method: 'PATCH', body: JSON.stringify(data) });
 const del = <T>(path: string) => request<T>(path, { method: 'DELETE' });
+const upload = <T>(path: string, form: FormData) => request<T>(path, { method: 'POST', body: form });
 
 export interface SiteInput {
     label: string;
@@ -140,7 +144,16 @@ export const api = {
         start: (id: string) => post<Intervention>(`/interventions/${id}/start`),
         submitReport: (id: string, voiceNote: string) => post<Report>(`/interventions/${id}/report`, { voiceNote }),
         cancel: (id: string, reason: string) => post<Intervention>(`/interventions/${id}/cancel`, { reason }),
+        upload: (id: string, form: FormData) => upload<Attachment>(`/interventions/${id}/attachments`, form),
+        transcribe: (id: string, form: FormData) => upload<{ text: string }>(`/interventions/${id}/transcribe`, form),
+        sign: (id: string, signerName: string, image: string) => post<unknown>(`/interventions/${id}/signature`, { signerName, image }),
     },
+
+    attachments: {
+        remove: (id: string) => del<unknown>(`/attachments/${id}`),
+    },
+
+    capabilities: () => get<Capabilities>('/capabilities'),
 
     planning: (date?: string) => get<PlanningDay>(`/planning${qs({ date })}`),
 

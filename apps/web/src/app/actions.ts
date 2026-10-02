@@ -432,3 +432,42 @@ export async function retryMessage(id: string) {
         return 'Nouvel envoi programmé';
     });
 }
+
+// ─── Photos, signature, audio ───────────────────────────────────
+
+export async function uploadPhotos(interventionId: string, form: FormData) {
+    return run(async () => {
+        const files = form.getAll('files').filter((f): f is File => f instanceof File && f.size > 0);
+        if (!files.length) throw new ApiError('Aucune photo sélectionnée', 400);
+        for (const file of files) {
+            const body = new FormData();
+            body.append('kind', 'PHOTO');
+            const caption = str(form, 'caption');
+            if (caption) body.append('caption', caption);
+            body.append('file', file);
+            await api.interventions.upload(interventionId, body);
+        }
+        return files.length > 1 ? `${files.length} photos ajoutées` : 'Photo ajoutée';
+    });
+}
+
+export async function deleteAttachment(id: string) {
+    return run(async () => {
+        await api.attachments.remove(id);
+        return 'Photo supprimée';
+    });
+}
+
+export async function saveSignature(interventionId: string, signerName: string, image: string) {
+    return run(async () => {
+        await api.interventions.sign(interventionId, signerName, image);
+        return `Signature de ${signerName} enregistrée`;
+    });
+}
+
+export async function transcribeAudio(interventionId: string, form: FormData) {
+    return run(async () => {
+        const { text } = await api.interventions.transcribe(interventionId, form);
+        return { message: 'Enregistrement transcrit', data: { text } };
+    });
+}

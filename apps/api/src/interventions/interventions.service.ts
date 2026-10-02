@@ -28,6 +28,7 @@ const detailInclude = {
     request: { select: { id: true, subject: true, fromName: true, receivedAt: true } },
     report: true,
     quotes: { select: { id: true, number: true, status: true } },
+    attachments: { orderBy: { createdAt: 'asc' }, select: { id: true, kind: true, filename: true, mimeType: true, size: true, caption: true, uploadedBy: true, createdAt: true } },
 } as const;
 
 @Injectable()

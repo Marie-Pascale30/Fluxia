@@ -1,6 +1,7 @@
 import { Controller, Get, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ActivityModule } from './activity/activity.module.js';
+import { AttachmentsModule } from './attachments/attachments.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { Public } from './auth/decorators.js';
 import { AiModule } from './ai/ai.module.js';
@@ -10,11 +11,13 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
 import { GeoModule } from './geo/geo.service.js';
 import { InterventionsModule } from './interventions/interventions.module.js';
 import { MessagingModule } from './messaging/messaging.module.js';
+import { PdfModule } from './pdf/pdf.module.js';
 import { PlanningModule } from './planning/planning.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { QuotesModule } from './quotes/quotes.module.js';
 import { ReportsModule } from './reports/reports.module.js';
 import { RequestsModule } from './requests/requests.module.js';
+import { StorageModule } from './storage/storage.service.js';
 import { TechniciansModule } from './technicians/technicians.module.js';
 
 @Public()
@@ -35,6 +38,7 @@ class HealthController {
         ActivityModule,
         AiModule,
         GeoModule,
+        StorageModule,
         // Référentiels
         CatalogModule,
         ClientsModule,
@@ -47,6 +51,8 @@ class HealthController {
         RequestsModule,
         DashboardModule,
         MessagingModule,
+        AttachmentsModule,
+        PdfModule,
     ],
     controllers: [HealthController],
 })

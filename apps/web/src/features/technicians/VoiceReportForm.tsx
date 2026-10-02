@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { submitVoiceReport } from '@/app/actions';
+import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from 'react';
+import { submitVoiceReport, transcribeAudio } from '@/app/actions';
+import { useToast } from '@/components/ui/Toast';
 import { useActionToast } from '@/components/ui/useActionToast';
 
 // API Web Speech (Chrome, Edge, Safari) — non typée dans lib.dom
@@ -31,16 +32,66 @@ const hasRecognition = () => recognitionCtor() !== undefined;
 const EXAMPLE =
     "J'ai trouvé le condensateur défectueux. Je l'ai remplacé, vérifié la pression et redémarré le groupe. Tout fonctionne normalement. Je recommande un nettoyage complet au prochain passage.";
 
-/** Compte rendu du technicien, tapé ou dicté ; l'IA en tire le rapport. */
-export function VoiceReportForm({ interventionId }: { interventionId: string }) {
+const hasRecorder = () => typeof MediaRecorder !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+const append = (prev: string, text: string) => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}${text.trim()}`;
+
+/**
+ * Compte rendu du technicien, tapé ou dicté ; l'IA en tire le rapport.
+ * Dictée : reconnaissance vocale du navigateur, ou enregistrement transcrit par le serveur
+ * (`serverTranscription`), qui fonctionne sur tous les navigateurs.
+ */
+export function VoiceReportForm({ interventionId, serverTranscription = false }: { interventionId: string; serverTranscription?: boolean }) {
     const { formAction, pending } = useActionToast(submitVoiceReport.bind(null, interventionId));
     const [note, setNote] = useState('');
     const [listening, setListening] = useState(false);
     // Dictée disponible uniquement dans les navigateurs compatibles (false au rendu serveur)
     const supported = useSyncExternalStore(noopSubscribe, hasRecognition, () => false);
+    const canRecord = useSyncExternalStore(noopSubscribe, hasRecorder, () => false) && serverTranscription;
     const recognition = useRef<Recognition | null>(null);
+    const recorder = useRef<MediaRecorder | null>(null);
+    const [recording, setRecording] = useState(false);
+    const [transcribing, startTranscribing] = useTransition();
+    const toast = useToast();
 
-    useEffect(() => () => recognition.current?.stop(), []);
+    useEffect(
+        () => () => {
+            recognition.current?.stop();
+            recorder.current?.stream.getTracks().forEach((t) => t.stop());
+        },
+        [],
+    );
+
+    const toggleRecording = async () => {
+        if (recording) {
+            recorder.current?.stop();
+            return;
+        }
+        let stream: MediaStream;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch {
+            toast("Accès au micro refusé : autorisez-le dans les réglages du navigateur", 'error');
+            return;
+        }
+        const rec = new MediaRecorder(stream);
+        const chunks: Blob[] = [];
+        rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+        rec.onstop = () => {
+            stream.getTracks().forEach((t) => t.stop());
+            setRecording(false);
+            const audio = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
+            startTranscribing(async () => {
+                const form = new FormData();
+                form.append('file', audio, 'note-vocale');
+                const result = await transcribeAudio(interventionId, form);
+                if (result.ok) setNote((prev) => append(prev, (result.data as { text: string }).text));
+                else toast(result.message, 'error');
+            });
+        };
+        recorder.current = rec;
+        rec.start();
+        setRecording(true);
+    };
 
     const toggleDictation = () => {
         if (listening) {
@@ -55,7 +106,7 @@ export function VoiceReportForm({ interventionId }: { interventionId: string }) 
         rec.onresult = (e) => {
             let text = '';
             for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) text += e.results[i][0].transcript;
-            if (text) setNote((prev) => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}${text.trim()}.`);
+            if (text) setNote((prev) => `${append(prev, text)}.`);
         };
         rec.onend = () => setListening(false);
         recognition.current = rec;
@@ -79,9 +130,14 @@ export function VoiceReportForm({ interventionId }: { interventionId: string }) 
                 <button className="btn ai" disabled={pending || note.trim().length < 15}>
                     {pending ? 'Rédaction du rapport…' : '✨ Générer le rapport'}
                 </button>
-                {supported && (
+                {supported && !canRecord && (
                     <button type="button" className={`btn ${listening ? 'danger' : 'light'}`} onClick={toggleDictation}>
                         {listening ? '■ Arrêter la dictée' : '🎙 Dicter'}
+                    </button>
+                )}
+                {canRecord && (
+                    <button type="button" className={`btn ${recording ? 'danger' : 'light'}`} onClick={toggleRecording} disabled={transcribing}>
+                        {transcribing ? 'Transcription…' : recording ? '■ Terminer l’enregistrement' : '🎙 Enregistrer'}
                     </button>
                 )}
                 {!note && (

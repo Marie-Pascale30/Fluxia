@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { quoteFromReport, reopenReport, sendReport, validateReport } from '@/app/actions';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { ActivityTimeline, Badge, Card, Notice, PageHeader } from '@/components/ui';
+import { PhotoGallery, SignatureView } from '@/features/field/PhotoGallery';
 import { ReportEditor } from '@/features/reports/ReportEditor';
 import { api } from '@/lib/api';
 import { getCurrentUser } from '@/lib/current-user';
@@ -56,6 +57,21 @@ export default async function ReportPage({ params }: PageProps<'/rapports/[id]'>
                                 <p>{report.recommendation}</p>
                             </>
                         )}
+                        {i.attachments.some((a) => a.kind === 'PHOTO') && (
+                            <>
+                                <b>Photos</b>
+                                <PhotoGallery attachments={i.attachments} />
+                            </>
+                        )}
+                        <SignatureView attachments={i.attachments} signedBy={i.signedBy} signedAt={i.signedAt} />
+                        <div className="actions">
+                            <a className="btn light sm" href={`/pdf/rapport/${report.id}`} target="_blank" rel="noreferrer">
+                                Aperçu PDF
+                            </a>
+                            <a className="btn light sm" href={`/pdf/rapport/${report.id}?download=1`}>
+                                Télécharger
+                            </a>
+                        </div>
                     </article>
 
                     <details className="card">

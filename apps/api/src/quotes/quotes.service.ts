@@ -224,6 +224,7 @@ export class QuotesService {
                     {
                         recipient: quote.client.email,
                         subject: `Devis ${quote.number} — ${quote.title}`,
+                        attachments: [{ kind: 'QUOTE_PDF', id }],
                         body: `Bonjour,\n\nVeuillez trouver ci-joint notre devis ${quote.number} d'un montant de ${(totalTtcCents / 100).toFixed(2).replace('.', ',')} € TTC.\n\nCordialement,\nL'équipe maintenance`,
                         entityType: 'QUOTE',
                         entityId: id,
