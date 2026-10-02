@@ -1,0 +1,141 @@
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ActivityService } from '../activity/activity.service.js';
+import type { ReportPart } from '../ai/ai.types.js';
+import { CatalogService } from '../catalog/catalog.service.js';
+import { ClientsService } from '../clients/clients.service.js';
+import type { ReportStatus } from '../common/domain.js';
+import { parseJson, toJson } from '../common/json.js';
+import { assertTransition, REPORT_TRANSITIONS } from '../common/state-machine.js';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { QuotesService } from '../quotes/quotes.service.js';
+import { computeBilling } from './billing.js';
+import type { UpdateReportDto } from './reports.dto.js';
+
+@Injectable()
+export class ReportsService {
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly activity: ActivityService,
+        private readonly catalog: CatalogService,
+        private readonly clients: ClientsService,
+        private readonly quotes: QuotesService,
+    ) {}
+
+    list() {
+        return this.prisma.report.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: { intervention: { include: { client: true, technician: true } }, quote: { select: { id: true, number: true, status: true } } },
+        });
+    }
+
+    private async get(id: string) {
+        const report = await this.prisma.report.findUnique({
+            where: { id },
+            include: {
+                intervention: { include: { client: true, site: true, equipment: true, technician: true } },
+                quote: { select: { id: true, number: true, status: true } },
+            },
+        });
+        if (!report) throw new NotFoundException('Rapport introuvable');
+        return report;
+    }
+
+    async findOne(id: string) {
+        const report = await this.get(id);
+        const [coverage, prices, timeline] = await Promise.all([
+            this.clients.coverage(report.intervention.clientId, report.createdAt),
+            this.catalog.priceMap(),
+            this.activity.forEntities([id, report.interventionId]),
+        ]);
+        const parts = parseJson<ReportPart[]>(report.parts, []);
+        return {
+            ...report,
+            parts,
+            coverage,
+            billing: computeBilling(parts, report.laborHours, coverage, prices),
+            timeline,
+        };
+    }
+
+    /** Correction manuelle du brouillon ; la facturation est recalculée. */
+    async update(id: string, dto: UpdateReportDto) {
+        const report = await this.get(id);
+        if (report.status !== 'DRAFT') throw new ConflictException('Seul un rapport en brouillon peut être modifié');
+
+        const parts = dto.parts?.map((p) => ({ label: p.label, catalogCode: p.catalogCode ?? null, quantity: p.quantity }))
+            ?? parseJson<ReportPart[]>(report.parts, []);
+        const laborHours = dto.laborHours ?? report.laborHours;
+        const [coverage, prices] = await Promise.all([
+            this.clients.coverage(report.intervention.clientId, report.createdAt),
+            this.catalog.priceMap(),
+        ]);
+        const billing = computeBilling(parts, laborHours, coverage, prices);
+
+        await this.prisma.report.update({
+            where: { id },
+            data: {
+                reason: dto.reason,
+                diagnosis: dto.diagnosis,
+                workDone: dto.workDone,
+                result: dto.result,
+                recommendation: dto.recommendation,
+                laborHours,
+                parts: toJson(parts),
+                billable: billing.billable,
+                billingNotes: billing.notes,
+            },
+        });
+        await this.activity.log({ actor: 'USER', type: 'REPORT_EDITED', message: 'Rapport corrigé', entityType: 'REPORT', entityId: id });
+        return this.findOne(id);
+    }
+
+    async validate(id: string) {
+        const report = await this.get(id);
+        assertTransition(REPORT_TRANSITIONS, report.status as ReportStatus, 'VALIDATED', 'Rapport');
+        await this.prisma.report.update({ where: { id }, data: { status: 'VALIDATED', validatedAt: new Date() } });
+        await this.activity.log({ actor: 'USER', type: 'REPORT_VALIDATED', message: 'Rapport validé', entityType: 'REPORT', entityId: id });
+        return this.findOne(id);
+    }
+
+    async reopen(id: string) {
+        const report = await this.get(id);
+        assertTransition(REPORT_TRANSITIONS, report.status as ReportStatus, 'DRAFT', 'Rapport');
+        await this.prisma.report.update({ where: { id }, data: { status: 'DRAFT', validatedAt: null } });
+        return this.findOne(id);
+    }
+
+    /** Envoi au client : clôture l'intervention. */
+    async send(id: string) {
+        const report = await this.get(id);
+        assertTransition(REPORT_TRANSITIONS, report.status as ReportStatus, 'SENT', 'Rapport (validez-le avant envoi)');
+        const { intervention } = report;
+
+        await this.prisma.$transaction(async (tx) => {
+            await tx.report.update({ where: { id }, data: { status: 'SENT', sentAt: new Date() } });
+            if (intervention.status === 'COMPLETED') {
+                await tx.intervention.update({ where: { id: intervention.id }, data: { status: 'CLOSED', closedAt: new Date() } });
+            }
+            if (intervention.client.email) {
+                await this.activity.sendMessage(
+                    {
+                        recipient: intervention.client.email,
+                        subject: `Rapport d'intervention #${intervention.number}`,
+                        body: `Bonjour,\n\nVoici le rapport de l'intervention du ${report.createdAt.toLocaleDateString('fr-FR')}.\n\nDiagnostic : ${report.diagnosis}\nTravaux : ${report.workDone}\nRésultat : ${report.result}${report.recommendation ? `\nRecommandation : ${report.recommendation}` : ''}\n\nCordialement,\nL'équipe maintenance`,
+                        entityType: 'REPORT',
+                        entityId: id,
+                    },
+                    tx,
+                );
+            }
+            await this.activity.log(
+                { actor: 'USER', type: 'REPORT_SENT', message: `Rapport #${intervention.number} envoyé au client, intervention clôturée`, entityType: 'REPORT', entityId: id },
+                tx,
+            );
+        });
+        return this.findOne(id);
+    }
+
+    createQuote(id: string) {
+        return this.quotes.createFromReport(id);
+    }
+}

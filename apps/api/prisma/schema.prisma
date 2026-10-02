@@ -1,0 +1,256 @@
+// Modèle de données Fluxia.
+// SQLite pour le développement (zéro installation). Pour PostgreSQL :
+// provider = "postgresql" + DATABASE_URL, puis `npm run db:setup`.
+// SQLite ne supporte pas les enums : les valeurs autorisées sont
+// définies et validées dans src/common/domain.ts.
+// Les montants sont stockés en centimes (Int) pour éviter les erreurs d'arrondi.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+  runtime      = "nodejs"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Client {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?
+  phone       String?
+  contactName String?
+  createdAt   DateTime @default(now())
+
+  sites         Site[]
+  contracts     Contract[]
+  requests      InboundRequest[]
+  interventions Intervention[]
+  quotes        Quote[]
+}
+
+model Site {
+  id         String  @id @default(cuid())
+  clientId   String
+  label      String
+  address    String
+  postalCode String
+  city       String
+  lat        Float
+  lng        Float
+
+  client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  equipments    Equipment[]
+  interventions Intervention[]
+  requests      InboundRequest[]
+}
+
+model Equipment {
+  id          String    @id @default(cuid())
+  siteId      String
+  type        String // EquipmentType
+  label       String
+  brand       String?
+  model       String?
+  installedAt DateTime?
+
+  site          Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  interventions Intervention[]
+  requests      InboundRequest[]
+}
+
+model Contract {
+  id              String    @id @default(cuid())
+  clientId        String
+  reference       String    @unique
+  label           String
+  startDate       DateTime
+  endDate         DateTime
+  coversLabor     Boolean   @default(true)
+  coversParts     Boolean   @default(false)
+  coversTravel    Boolean   @default(true)
+  nextServiceDate DateTime?
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model Technician {
+  id        String  @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String  @unique
+  phone     String?
+  skills    String // liste d'EquipmentType séparés par des virgules
+  baseLat   Float
+  baseLng   Float
+  active    Boolean @default(true)
+
+  interventions Intervention[]
+}
+
+model InboundRequest {
+  id          String   @id @default(cuid())
+  channel     String   @default("EMAIL") // RequestChannel
+  fromName    String
+  fromEmail   String
+  subject     String
+  body        String
+  receivedAt  DateTime @default(now())
+  status      String   @default("NEW") // RequestStatus
+  attachments Int      @default(0)
+
+  // Résultat d'analyse IA
+  category        String? // RequestCategory
+  priority        String? // Priority
+  summary         String?
+  symptoms        String? // JSON string[]
+  suggestedAction String? // SuggestedAction
+  confidence      Float?
+  aiProvider      String?
+  analyzedAt      DateTime?
+
+  clientId    String?
+  siteId      String?
+  equipmentId String?
+
+  client       Client?       @relation(fields: [clientId], references: [id])
+  site         Site?         @relation(fields: [siteId], references: [id])
+  equipment    Equipment?    @relation(fields: [equipmentId], references: [id])
+  intervention Intervention?
+  quote        Quote?
+}
+
+model Intervention {
+  id                String    @id @default(cuid())
+  number            Int       @unique
+  type              String    @default("BREAKDOWN") // InterventionType
+  priority          String    @default("NORMAL") // Priority
+  status            String    @default("TO_SCHEDULE") // InterventionStatus
+  title             String
+  description       String
+  initialDiagnosis  String?
+  estimatedMinutes  Int       @default(90)
+  scheduledStart    DateTime?
+  scheduledEnd      DateTime?
+  dispatchedAt      DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  closedAt          DateTime?
+  cancelledReason   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  clientId     String
+  siteId       String
+  equipmentId  String?
+  technicianId String?
+  requestId    String? @unique
+
+  client     Client          @relation(fields: [clientId], references: [id])
+  site       Site            @relation(fields: [siteId], references: [id])
+  equipment  Equipment?      @relation(fields: [equipmentId], references: [id])
+  technician Technician?     @relation(fields: [technicianId], references: [id])
+  request    InboundRequest? @relation(fields: [requestId], references: [id])
+  report     Report?
+  quotes     Quote[]
+
+  @@index([technicianId, scheduledStart])
+  @@index([status])
+}
+
+model Report {
+  id             String    @id @default(cuid())
+  interventionId String    @unique
+  status         String    @default("DRAFT") // ReportStatus
+  voiceNote      String
+  reason         String
+  diagnosis      String
+  workDone       String
+  result         String
+  recommendation String?
+  parts          String    @default("[]") // JSON ReportPart[]
+  laborHours     Float     @default(1)
+  billable       Boolean   @default(false)
+  billingNotes   String?
+  aiProvider     String
+  createdAt      DateTime  @default(now())
+  validatedAt    DateTime?
+  sentAt         DateTime?
+
+  intervention Intervention @relation(fields: [interventionId], references: [id], onDelete: Cascade)
+  quote        Quote?
+}
+
+model Quote {
+  id             String    @id @default(cuid())
+  number         String    @unique
+  status         String    @default("DRAFT") // QuoteStatus
+  title          String
+  notes          String?
+  warnings       String? // JSON string[] : points à contrôler
+  vatRate        Float     @default(0.2)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  validatedAt    DateTime?
+  sentAt         DateTime?
+  decidedAt      DateTime?
+
+  clientId       String
+  interventionId String?
+  reportId       String? @unique
+  requestId      String? @unique
+
+  client       Client          @relation(fields: [clientId], references: [id])
+  intervention Intervention?   @relation(fields: [interventionId], references: [id])
+  report       Report?         @relation(fields: [reportId], references: [id])
+  request      InboundRequest? @relation(fields: [requestId], references: [id])
+  lines        QuoteLine[]
+}
+
+model QuoteLine {
+  id                 String @id @default(cuid())
+  quoteId            String
+  position           Int
+  kind               String // QuoteLineKind
+  label              String
+  quantity           Float
+  unitPriceCents     Int
+  catalogCode        String?
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+}
+
+model CatalogItem {
+  id             String @id @default(cuid())
+  code           String @unique
+  kind           String // QuoteLineKind
+  label          String
+  unitPriceCents Int
+  keywords       String // mots-clés séparés par des virgules (détection dans les notes)
+}
+
+// Journal d'audit : chaque action de l'IA ou d'un humain est tracée.
+model Activity {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  actor      String // ActivityActor
+  type       String
+  message    String
+  entityType String
+  entityId   String
+}
+
+// Messages sortants (emails clients, missions techniciens) — simulés.
+model OutboundMessage {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  channel    String   @default("EMAIL")
+  recipient  String
+  subject    String
+  body       String
+  entityType String
+  entityId   String
+}

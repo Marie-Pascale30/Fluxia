@@ -1,0 +1,121 @@
+/* Structure de l'application : sidebar, topbar, contenu, grilles */
+.side {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: var(--sidebar-width);
+    background: var(--nav);
+    color: #dce5f2;
+    padding: 20px 13px
+}
+
+.brand {
+    font-size: 23px;
+    font-weight: 850;
+    padding: 3px 13px 27px
+}
+
+.brand span {
+    opacity: .45
+}
+
+.nav-item {
+    display: block;
+    width: 100%;
+    color: #aebbd0;
+    text-decoration: none;
+    padding: 11px 12px;
+    border-radius: 9px;
+    margin: 2px 0;
+    font-size: 14px
+}
+
+.nav-item.active,
+.nav-item:hover {
+    background: #1d2a3d;
+    color: #fff
+}
+
+.count {
+    float: right;
+    background: #fff;
+    color: #172033;
+    border-radius: 99px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 800
+}
+
+.main {
+    margin-left: var(--sidebar-width)
+}
+
+.top {
+    height: 66px;
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    position: sticky;
+    top: 0;
+    z-index: 5
+}
+
+.crumb {
+    color: var(--muted);
+    font-size: 13px
+}
+
+.content {
+    padding: 28px;
+    max-width: 1250px;
+    margin: auto
+}
+
+.grid {
+    display: grid;
+    gap: 16px
+}
+
+.g4 {
+    grid-template-columns: repeat(4, 1fr)
+}
+
+.two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px
+}
+
+@media(max-width:900px) {
+    .side {
+        width: var(--sidebar-width-compact)
+    }
+
+    .brand {
+        font-size: 0
+    }
+
+    .brand:after {
+        content: "F";
+        font-size: 23px
+    }
+
+    .nav-item {
+        font-size: 0
+    }
+
+    .main {
+        margin-left: var(--sidebar-width-compact)
+    }
+
+    .g4,
+    .two {
+        grid-template-columns: 1fr
+    }
+
+    .content {
+        padding: 18px
+    }
+}

@@ -1,0 +1,61 @@
+/* Design tokens, reset et utilitaires */
+:root {
+    --bg: #f5f7fb;
+    --ink: #182235;
+    --muted: #6c778a;
+    --line: #e4e8ef;
+    --card: #fff;
+    --nav: #101827;
+    --blue: #315fa8;
+    --green: #28764b;
+    --red: #b23b3b;
+    --sidebar-width: 230px;
+    --sidebar-width-compact: 70px;
+}
+
+* {
+    box-sizing: border-box
+}
+
+body {
+    margin: 0;
+    font-family: Inter, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink)
+}
+
+.h1 {
+    font-size: 28px;
+    font-weight: 850;
+    margin: 0 0 5px
+}
+
+.sub {
+    color: var(--muted);
+    margin-bottom: 22px
+}
+
+.muted {
+    color: var(--muted);
+    font-size: 13px
+}
+
+.grow {
+    flex: 1
+}
+
+.mt-16 {
+    margin-top: 16px
+}
+
+.mt-18 {
+    margin-top: 18px
+}
+
+.mb-16 {
+    margin-bottom: 16px
+}
+
+.scroll-x {
+    overflow: auto
+}
