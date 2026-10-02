@@ -120,7 +120,7 @@ export class TechnicianAdminService {
                     phone: dto.phone,
                     skills: dto.skills,
                     active: dto.active,
-                    ...(base ?? {}),
+                    ...base,
                 },
             });
             // Le compte suit le statut et le nom du technicien

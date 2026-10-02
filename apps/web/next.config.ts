@@ -1,8 +1,11 @@
+import { resolve } from 'node:path';
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
     // Fluxia doit pouvoir être hébergé dans un conteneur autonome (voir Dockerfile)
     output: 'standalone',
+    // Monorepo : la sortie autonome embarque aussi @fluxia/shared
+    outputFileTracingRoot: resolve(process.cwd(), '../..'),
     experimental: {
         // Photos de chantier et enregistrements audio envoyés via Server Actions
         serverActions: { bodySizeLimit: '26mb' },

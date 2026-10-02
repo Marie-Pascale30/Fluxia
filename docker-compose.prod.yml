@@ -1,0 +1,58 @@
+# Déploiement complet (base + API + web) :
+#   cp .env.prod.example .env.prod   # puis renseigner les secrets
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+# Données de démonstration (optionnel) :
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm seed
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fluxia
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+      POSTGRES_DB: fluxia
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U fluxia']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    restart: unless-stopped
+    depends_on: { db: { condition: service_healthy } }
+    env_file: .env.prod
+    environment:
+      DATABASE_URL: postgresql://fluxia:${POSTGRES_PASSWORD}@db:5432/fluxia?schema=public
+      WEB_ORIGIN: ${PUBLIC_WEB_URL:?PUBLIC_WEB_URL requis}
+    volumes:
+      - uploads:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:4000/api/health || exit 1']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    restart: unless-stopped
+    depends_on: { api: { condition: service_healthy } }
+    environment:
+      API_URL: http://api:4000/api
+    ports:
+      - '${WEB_PORT:-3000}:3000'
+
+  seed:
+    profiles: [seed]
+    build: { context: ., dockerfile: apps/api/Dockerfile, target: build }
+    depends_on: { db: { condition: service_healthy } }
+    working_dir: /repo/apps/api
+    environment:
+      DATABASE_URL: postgresql://fluxia:${POSTGRES_PASSWORD}@db:5432/fluxia?schema=public
+    command: sh -c "npx prisma migrate deploy && npx tsx prisma/seed.ts"
+
+volumes:
+  db-data:
+  uploads:

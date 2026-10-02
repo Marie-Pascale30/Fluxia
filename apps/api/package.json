@@ -65,8 +65,5 @@
     "tsx": "^4.23.15",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"
-  },
-  "prisma": {
-    "seed": "tsx --env-file=.env prisma/seed.ts"
   }
 }

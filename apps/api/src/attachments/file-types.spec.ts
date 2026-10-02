@@ -1,6 +1,6 @@
 import { decodePngDataUrl, detectFileType } from './file-types.js';
 
-const pad = (bytes: number[]) => Buffer.from([...bytes, ...new Array(16).fill(0)]);
+const pad = (bytes: number[]) => Buffer.from([...bytes, ...Array.from({ length: 16 }, () => 0)]);
 
 describe('detectFileType', () => {
     it('reconnaît images et audio par leur signature', () => {
@@ -18,7 +18,7 @@ describe('detectFileType', () => {
 });
 
 describe('decodePngDataUrl', () => {
-    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(16).fill(0)]);
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...Array.from({ length: 16 }, () => 0)]);
 
     it('décode une signature PNG', () => {
         expect(decodePngDataUrl(`data:image/png;base64,${png.toString('base64')}`)?.length).toBe(png.length);

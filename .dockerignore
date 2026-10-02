@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/dist-e2e
+**/.next
+**/.env
+apps/api/storage
+apps/api/storage-test
+apps/api/storage-e2e
+**/test-results
+**/playwright-report
+apps/api/src/generated
+legacy
+.git
+.github
+.vscode

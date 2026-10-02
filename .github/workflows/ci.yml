@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 24
+  TZ: America/New_York # le fuseau du serveur ne doit pas influencer les dates (APP_TIMEZONE)
+
+jobs:
+  checks:
+    name: Vérifications, tests API, build
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: fluxia
+          POSTGRES_PASSWORD: fluxia
+          POSTGRES_DB: fluxia_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fluxia" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://fluxia:fluxia@localhost:5432/fluxia_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint -w api
+      - run: npm run lint -w web
+      - run: npm test
+      - run: npm run test:e2e -w api
+      - run: npm run build
+
+  browser:
+    name: Tests navigateur (Playwright)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: fluxia
+          POSTGRES_PASSWORD: fluxia
+          POSTGRES_DB: fluxia_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fluxia" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      E2E_DATABASE_URL: postgresql://fluxia:fluxia@localhost:5432/fluxia_e2e?schema=public
+      API_URL: http://localhost:4005/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - name: Build du web
+        run: npm run build -w web
+      - name: Démarrage de l'API de test (:4005) et du web (:3005)
+        run: |
+          node scripts/e2e-api.mjs > api.log 2>&1 &
+          npx wait-on -t 180000 http-get://localhost:4005/api/health
+          (cd apps/web && npx next start -p 3005 > ../../web.log 2>&1 &)
+          npx wait-on -t 60000 http-get://localhost:3005/login
+      - run: npm run test:e2e -w web
+      - name: Journaux des serveurs
+        if: failure()
+        run: tail -n 200 api.log web.log
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          retention-days: 7
+
+  docker:
+    name: Images Docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - run: docker build -f apps/api/Dockerfile -t fluxia-api .
+      - run: docker build -f apps/web/Dockerfile -t fluxia-web .

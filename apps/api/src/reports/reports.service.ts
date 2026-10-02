@@ -1,7 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { ActivityService } from '../activity/activity.service.js';
 import { assertInterventionAccess, currentUser } from '../auth/auth.types.js';
-import type { ReportPart } from '../ai/ai.types.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { ClientsService } from '../clients/clients.service.js';
 import type { ReportStatus } from '../common/domain.js';
