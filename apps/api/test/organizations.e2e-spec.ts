@@ -1,6 +1,7 @@
 // Multi-entreprise : inscription, paramètres et cloisonnement strict des données.
 // « Démo » = l'entreprise des données de démonstration ; « Clim Express » s'inscrit pendant le test.
-import { call, login, useToken } from './client.js';
+import { schemas as S } from '@fluxia/shared';
+import { call, expectContract, login, useToken } from './client.js';
 
 const list = (res: { body: unknown }) => res.body as { id: string }[];
 
@@ -32,8 +33,8 @@ describe('Inscription', () => {
         other = res.body.token;
         expect(res.body.user).toMatchObject({ name: 'Nina Roux', role: 'MANAGER', organizationName: 'Clim Express' });
 
-        const me = await call('GET', '/auth/me', undefined, { token: other });
-        expect(me.body.organizationName).toBe('Clim Express');
+        const me = expectContract(S.SessionUser, (await call('GET', '/auth/me', undefined, { token: other })).body);
+        expect(me.organizationName).toBe('Clim Express');
         // La connexion classique fonctionne ensuite
         expect(await login(email, 'un-mot-de-passe-solide')).toBeTruthy();
     });
@@ -131,6 +132,7 @@ describe('Paramètres de l’entreprise', () => {
         useToken(other);
         const updated = await call('PATCH', '/organization', { phone: '04 91 00 00 00', legal: 'SARL Clim Express', paymentTermsDays: 45 });
         expect(updated.status).toBe(200);
+        expectContract(S.Organization, updated.body);
         expect(updated.body).toMatchObject({ name: 'Clim Express', phone: '04 91 00 00 00', paymentTermsDays: 45 });
 
         const demoSettings = (await call('GET', '/organization', undefined, { token: demo })).body;

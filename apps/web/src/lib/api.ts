@@ -37,6 +37,7 @@ import type {
     Technician,
     TechnicianDetail,
     TechnicianWithLoad,
+    Organization,
 } from './types';
 
 const API_URL = process.env.API_URL ?? 'http://localhost:4000/api';
@@ -117,7 +118,15 @@ export const api = {
     auth: {
         login: (email: string, password: string) =>
             request<LoginResult>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }), anonymous: true }),
+        signup: (data: { organizationName: string; name: string; email: string; password: string }) =>
+            request<LoginResult>('/auth/signup', { method: 'POST', body: JSON.stringify(data), anonymous: true }),
         me: () => get<SessionUser>('/auth/me'),
+    },
+
+    organization: {
+        get: () => get<Organization>('/organization'),
+        update: (data: Partial<Omit<Organization, 'id' | 'inboundToken'>>) => patch<Organization>('/organization', data),
+        rotateInboundToken: () => post<Organization>('/organization/inbound-token'),
     },
 
     dashboard: () => get<Dashboard>('/dashboard'),

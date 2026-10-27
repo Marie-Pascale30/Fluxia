@@ -6,8 +6,6 @@ import { formatDate, formatMoney, formatSlot, INTERVENTION_STATUS, QUOTE_STATUS 
 
 export const metadata = { title: 'Espace client', robots: { index: false, follow: false } };
 
-const COMPANY = process.env.COMPANY_NAME ?? 'Fluxia Maintenance';
-
 /** Espace client public : accès par lien signé, sans compte. */
 export default async function PortalPage({ params }: PageProps<'/portail/[token]'>) {
     const { token } = await params;
@@ -24,7 +22,7 @@ export default async function PortalPage({ params }: PageProps<'/portail/[token]
     return (
         <div className="portal">
             <header className="portal-head">
-                <div className="auth-brand">{COMPANY}</div>
+                <div className="auth-brand">{summary.company.name}</div>
                 <div className="muted">Espace client · {summary.client.name}</div>
             </header>
 

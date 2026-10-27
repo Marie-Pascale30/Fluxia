@@ -544,3 +544,36 @@ export async function cancelInvoice(id: string, _: ActionResult | null, form: Fo
         return `Facture annulée par l'avoir ${invoice.creditNoteNumber}`;
     });
 }
+
+// ─── Paramètres de l'entreprise ─────────────────────────────────
+
+/** Champ texte pouvant être vidé (contrairement à str(), qui ignore les champs vides). */
+const text = (form: FormData, key: string) => {
+    const value = form.get(key);
+    return typeof value === 'string' ? value.trim() : undefined;
+};
+
+export async function updateOrganization(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+    return run(async () => {
+        const terms = text(form, 'paymentTermsDays');
+        await api.organization.update({
+            name: text(form, 'name'),
+            address: text(form, 'address'),
+            phone: text(form, 'phone'),
+            email: text(form, 'email'),
+            legal: text(form, 'legal'),
+            signature: text(form, 'signature'),
+            paymentTermsDays: terms ? Number(terms) : undefined,
+            accountRevenue: text(form, 'accountRevenue'),
+            accountVat: text(form, 'accountVat'),
+        });
+        return 'Paramètres enregistrés';
+    });
+}
+
+export async function rotateInboundToken(): Promise<ActionResult> {
+    return run(async () => {
+        await api.organization.rotateInboundToken();
+        return 'Nouvelle adresse de réception générée : mettez à jour votre fournisseur d’emails';
+    });
+}

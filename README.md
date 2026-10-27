@@ -24,6 +24,9 @@ npm run db:setup     # applique les migrations et charge les données de démo
 npm run dev          # shared + API sur :4000 + web sur http://localhost:3000
 ```
 
+Une nouvelle entreprise s'inscrit sur http://localhost:3000/inscription. Elle dispose de son propre espace,
+isolé de celui des autres entreprises. Les données de démo appartiennent à l'entreprise « Fluxia Maintenance ».
+
 Comptes de démonstration (mot de passe `fluxia-demo`) :
 
 | Compte | Rôle |
@@ -36,6 +39,9 @@ Comptes de démonstration (mot de passe `fluxia-demo`) :
 
 ## Fonctionnalités
 
+0. **Multi-entreprise** : chaque entreprise s'inscrit, renseigne ses coordonnées, mentions légales et réglages de facturation
+   (page Paramètres) et travaille dans un espace étanche : clients, techniciens, documents, numérotation et emails entrants
+   lui sont propres.
 1. **Inbox IA** : les demandes arrivent par email (webhook ou relève IMAP), formulaire ou saisie. L'IA qualifie la demande
    (catégorie, priorité, symptômes, équipement, coordonnées) et le client est rattaché par des règles déterministes.
    Pour un nouveau contact, on crée le client en un clic. Une réponse peut être rédigée par l'IA puis envoyée.
@@ -64,15 +70,22 @@ tout fonctionne en local : messages simulés et tracés, moteur IA heuristique, 
 | Besoin | Variables |
 |---|---|
 | IA Claude (`claude-opus-5-5`) | `ANTHROPIC_API_KEY` (repli automatique sur le moteur local ; `AI_PROVIDER=heuristic` le force) |
-| Emails sortants | `SMTP_URL`, `MAIL_FROM` |
+| Emails sortants | `SMTP_URL`, `MAIL_FROM` (adresse de la plateforme ; nom affiché et « Répondre à » : ceux de l'entreprise) |
 | SMS | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` |
-| Emails entrants | `INBOUND_EMAIL_TOKEN` (webhook `POST /api/inbound/email?token=…`) ou `IMAP_URL` |
+| Emails entrants | webhook propre à chaque entreprise (adresse affichée dans Paramètres), ou `IMAP_URL` + `IMAP_ORGANIZATION_ID` |
 | Transcription audio | `TRANSCRIPTION_URL`, `TRANSCRIPTION_API_KEY`, `TRANSCRIPTION_MODEL` (API compatible OpenAI) |
-| Documents et factures | `COMPANY_*`, `PAYMENT_TERMS_DAYS`, `ACCOUNT_*` |
 | Liens du portail | `PUBLIC_WEB_URL` |
-| Sécurité | `JWT_SECRET` (obligatoire en production), `LOGIN_RATE_LIMIT` |
+| Sécurité | `JWT_SECRET` (obligatoire en production), `LOGIN_RATE_LIMIT`, `SIGNUP_RATE_LIMIT` |
+
+Coordonnées, mentions légales, signature des emails, délai de paiement et comptes comptables se règlent par entreprise
+dans l'application (page Paramètres), et non plus par variables d'environnement.
 
 ## Règles métier garanties par l'API
+
+- Cloisonnement des entreprises (`src/common/tenant.ts`) : une extension Prisma restreint chaque requête à l'entreprise
+  de l'utilisateur connecté et y rattache chaque création. Sans entreprise dans le contexte, l'accès est refusé, et la base
+  rejette toute création hors contexte. Les traitements transverses (connexion, file d'envoi, tâches planifiées) le
+  déclarent explicitement (`asSystem`, `asOrganization`). Les tests `organizations.e2e-spec.ts` vérifient l'étanchéité.
 
 - Les cycles de vie sont contrôlés (`src/common/state-machine.ts`) : une mission ne peut pas partir sans affectation,
   et un rapport ou un devis ne peut pas être envoyé sans validation.
@@ -89,8 +102,9 @@ tout fonctionne en local : messages simulés et tracés, moteur IA heuristique, 
 packages/shared/src  domain.ts (vocabulaire), contract.ts (schémas Zod des réponses)
 
 apps/api/src
-  common/        dates (fuseau), machines à états, numérotation, secrets, géo
-  auth/          JWT, garde globale, rôles, contexte de requête
+  common/        cloisonnement par entreprise (tenant.ts), dates (fuseau), machines à états, numérotation, secrets, géo
+  auth/          JWT, garde globale, rôles, contexte de requête, inscription
+  organizations/ fiche et paramètres de l'entreprise
   ai/            AiProvider : heuristic.provider, claude.provider, ai.service (sélection + repli)
   planning/      scheduler.ts (fonctions pures, testées) + planning.service
   requests/      Inbox : ingestion, analyse, création client, réponses

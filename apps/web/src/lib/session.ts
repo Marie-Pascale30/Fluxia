@@ -11,6 +11,8 @@ export interface SessionUser {
     email: string;
     role: Role;
     technicianId: string | null;
+    organizationId: string;
+    organizationName: string;
 }
 
 interface TokenClaims {
@@ -18,6 +20,8 @@ interface TokenClaims {
     role: Role;
     tid: string | null;
     name: string;
+    /** Entreprise de l'utilisateur */
+    org: string;
     exp: number;
 }
 

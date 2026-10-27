@@ -13,7 +13,6 @@ import { orNotFound } from '@/lib/data';
 import {
     dayKey,
     EQUIPMENT,
-    formatDateTime,
     formatDuration,
     formatSlot,
     INTERVENTION_STATUS,

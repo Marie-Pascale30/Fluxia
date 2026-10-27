@@ -445,7 +445,34 @@ export const InvoiceDetail = Invoice.extend({
 
 // ─── Portail client (accès public par lien signé) ───────────────
 
+/** Entreprise utilisatrice : coordonnées des documents et réglages (responsable uniquement). */
+export const Organization = z.object({
+    id,
+    name: z.string(),
+    address: z.string(),
+    phone: z.string(),
+    email: z.string(),
+    legal: z.string(),
+    signature: z.string(),
+    paymentTermsDays: z.number().int(),
+    accountRevenue: z.string(),
+    accountVat: z.string(),
+    inboundToken: z.string(),
+});
+
+/** Utilisateur connecté (GET /auth/me). */
+export const SessionUser = z.object({
+    id,
+    name: z.string(),
+    email: z.string(),
+    role: z.enum(['MANAGER', 'TECHNICIAN']),
+    technicianId: z.string().nullable(),
+    organizationId: z.string(),
+    organizationName: z.string(),
+});
+
 export const PortalSummary = z.object({
+    company: z.object({ name: z.string(), phone: z.string(), email: z.string() }),
     client: z.object({ name: z.string(), contactName: z.string().nullable() }),
     interventions: z.array(
         z.object({

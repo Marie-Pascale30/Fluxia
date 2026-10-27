@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Notice } from '@/components/ui';
 import { LoginForm } from './LoginForm';
 
@@ -15,6 +16,9 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
                 <p className="muted">Le bureau administratif IA des entreprises de maintenance.</p>
                 {expired && <Notice tone="warning">Votre session a expiré, reconnectez-vous.</Notice>}
                 <LoginForm next={typeof next === 'string' ? next : undefined} />
+                <p className="muted small mt">
+                    Nouvelle entreprise ? <Link href="/inscription">Créer un compte</Link>
+                </p>
                 {process.env.NODE_ENV !== 'production' && (
                     <p className="muted small mt">
                         Démo : <code>julien@fluxia.fr</code> (responsable) ou <code>thomas.martin@fluxia.fr</code> (technicien),

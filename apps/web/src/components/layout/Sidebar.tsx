@@ -39,6 +39,7 @@ const SECTIONS = [
             { href: '/clients', label: 'Clients', icon: '⌂' },
             { href: '/catalogue', label: 'Catalogue', icon: '☰' },
             { href: '/envois', label: 'Envois', icon: '➤', badge: 'failedMessages' },
+            { href: '/parametres', label: 'Paramètres', icon: '⚙' },
         ],
     },
 ] as const;
@@ -63,6 +64,9 @@ export function Sidebar({
                 <Link href={href} className="brand">
                     flux<span>ia</span>
                 </Link>
+                <div className="side-org" title="Entreprise">
+                    {user.organizationName}
+                </div>
                 <nav>
                     <div className="nav-section">Terrain</div>
                     <Link href={href} className={`nav-item ${isActive(href) ? 'active' : ''}`}>
@@ -80,6 +84,9 @@ export function Sidebar({
         <aside className="side">
             <Link href="/" className="brand">
                 flux<span>ia</span>
+            </Link>
+            <Link href="/parametres" className="side-org" title="Paramètres de l'entreprise">
+                {user.organizationName}
             </Link>
             <nav>
                 {SECTIONS.map((section) => (
