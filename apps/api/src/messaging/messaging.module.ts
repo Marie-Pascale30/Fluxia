@@ -1,4 +1,3 @@
-import { timingSafeEqual } from 'node:crypto';
 import {
     BadRequestException,
     Body,
@@ -9,12 +8,13 @@ import {
     Headers,
     HttpCode,
     Module,
-    NotFoundException,
     Param,
     Post,
     Query,
 } from '@nestjs/common';
 import { Public } from '../auth/decorators.js';
+import { asOrganization } from '../common/tenant.js';
+import { OrganizationService } from '../organizations/organizations.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RequestsModule } from '../requests/requests.module.js';
 import { RequestsService } from '../requests/requests.service.js';
@@ -22,20 +22,18 @@ import { ImapPoller } from './imap.poller.js';
 import { normalizeInbound } from './inbound.js';
 import { OutboxService } from './outbox.service.js';
 
-const sameSecret = (a: string, b: string) => {
-    const x = Buffer.from(a);
-    const y = Buffer.from(b);
-    return x.length === y.length && timingSafeEqual(x, y);
-};
-
 /**
  * Webhook de réception d'emails (Postmark, Mailgun, SendGrid, format générique).
- * Protégé par INBOUND_EMAIL_TOKEN, transmis en en-tête `x-fluxia-token` ou en `?token=`.
+ * Chaque entreprise a son jeton secret (paramètres de l'entreprise), transmis en en-tête
+ * `x-fluxia-token` ou en `?token=` : il désigne l'entreprise destinataire.
  */
 @Public()
 @Controller('inbound')
 class InboundController {
-    constructor(private readonly requests: RequestsService) {}
+    constructor(
+        private readonly requests: RequestsService,
+        private readonly organizations: OrganizationService,
+    ) {}
 
     @Post('email')
     @HttpCode(200)
@@ -44,22 +42,23 @@ class InboundController {
         @Headers('x-fluxia-token') header?: string,
         @Query('token') query?: string,
     ) {
-        const expected = process.env.INBOUND_EMAIL_TOKEN;
-        if (!expected) throw new NotFoundException();
-        if (!sameSecret(header ?? query ?? '', expected)) throw new ForbiddenException('Jeton invalide');
+        const organization = await this.organizations.byInboundToken(header ?? query ?? '');
+        if (!organization) throw new ForbiddenException('Jeton invalide');
 
         const email = normalizeInbound(payload);
         if (!email) throw new BadRequestException('Email entrant illisible (expéditeur ou texte manquant)');
 
-        const request = await this.requests.ingest(
-            {
-                fromName: email.fromName.slice(0, 120),
-                fromEmail: email.fromEmail,
-                subject: email.subject.slice(0, 200),
-                body: email.text.slice(0, 10_000),
-                attachments: Math.min(50, email.attachments),
-            },
-            email.externalId,
+        const request = await asOrganization(organization.id, () =>
+            this.requests.ingest(
+                {
+                    fromName: email.fromName.slice(0, 120),
+                    fromEmail: email.fromEmail,
+                    subject: email.subject.slice(0, 200),
+                    body: email.text.slice(0, 10_000),
+                    attachments: Math.min(50, email.attachments),
+                },
+                email.externalId,
+            ),
         );
         return { id: request.id, status: request.status };
     }

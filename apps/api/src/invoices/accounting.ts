@@ -4,11 +4,13 @@
 
 import { formatShortDateFr } from '../common/dates.js';
 
-export const ACCOUNTS = {
-    revenue: process.env.ACCOUNT_REVENUE ?? '706000', // Prestations de services
-    vat: process.env.ACCOUNT_VAT ?? '445710', // TVA collectée
-    clientPrefix: '411',
+/** Comptes par défaut (modifiables dans les paramètres de l'entreprise). */
+export const DEFAULT_ACCOUNTS = {
+    revenue: '706000', // Prestations de services
+    vat: '445710', // TVA collectée
 };
+
+const CLIENT_PREFIX = '411';
 
 export interface SalesEntry {
     date: Date;
@@ -29,21 +31,21 @@ export function clientAccount(name: string) {
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, '')
         .slice(0, 8);
-    return `${ACCOUNTS.clientPrefix}${slug || 'DIVERS'}`;
+    return `${CLIENT_PREFIX}${slug || 'DIVERS'}`;
 }
 
 const amount = (cents: number) => (cents / 100).toFixed(2).replace('.', ',');
 const cell = (value: string) => (/[;"\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
 
-export function salesJournalCsv(entries: SalesEntry[]): string {
+export function salesJournalCsv(entries: SalesEntry[], accounts = DEFAULT_ACCOUNTS): string {
     const rows: string[][] = [['Date', 'Journal', 'Pièce', 'Compte', 'Libellé', 'Débit', 'Crédit']];
     for (const e of entries) {
         const label = `${e.credit ? 'Avoir' : 'Facture'} ${e.number} ${e.clientName}`;
         const date = formatShortDateFr(e.date);
         const lines: [string, number, number][] = [
             [clientAccount(e.clientName), e.ttcCents, 0],
-            [ACCOUNTS.revenue, 0, e.htCents],
-            [ACCOUNTS.vat, 0, e.vatCents],
+            [accounts.revenue, 0, e.htCents],
+            [accounts.vat, 0, e.vatCents],
         ];
         for (const [account, debit, credit] of lines) {
             const [d, c] = e.credit ? [credit, debit] : [debit, credit];

@@ -13,6 +13,10 @@ export interface OutgoingEmail {
     subject: string;
     text: string;
     attachments: OutgoingAttachment[];
+    /** Nom affiché de l'expéditeur (l'entreprise) ; l'adresse reste celle de MAIL_FROM */
+    fromName?: string;
+    /** Adresse de l'entreprise : les réponses du client lui parviennent directement */
+    replyTo?: string;
 }
 
 export interface DeliveryReceipt {
@@ -60,8 +64,10 @@ export class SmtpEmailTransport implements EmailTransport {
         this.transporter = nodemailer.createTransport(url);
     }
     async send(email: OutgoingEmail): Promise<DeliveryReceipt> {
+        const address = /<([^>]+)>/.exec(this.from)?.[1] ?? this.from;
         const info = await this.transporter.sendMail({
-            from: this.from,
+            from: email.fromName ? { name: email.fromName, address } : this.from,
+            replyTo: email.replyTo || undefined,
             to: email.to,
             subject: email.subject,
             text: email.text,

@@ -143,34 +143,82 @@ enum MessageStatus {
   FAILED
 }
 
+// ─── Entreprises ─────────────────────────────────────────────────
+
+/// Entreprise cliente de Fluxia. Toutes les données métier lui sont rattachées
+/// (organizationId) et filtrées automatiquement (extension Prisma, cf. common/tenant.ts).
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  // Coordonnées et mentions affichées sur les documents et les emails
+  address          String @default("")
+  phone            String @default("")
+  email            String @default("")
+  /// Mentions légales : forme juridique, SIRET, n° de TVA…
+  legal            String @default("")
+  signature        String @default("L'équipe maintenance")
+  paymentTermsDays Int    @default(30)
+  accountRevenue   String @default("706000")
+  accountVat       String @default("445710")
+  /// Jeton secret du webhook d'emails entrants (POST /api/inbound/email?token=…)
+  inboundToken     String @unique
+
+  users         User[]
+  clients       Client[]
+  sites         Site[]
+  equipments    Equipment[]
+  contracts     Contract[]
+  technicians   Technician[]
+  catalogItems  CatalogItem[]
+  requests      InboundRequest[]
+  interventions Intervention[]
+  reports       Report[]
+  quotes        Quote[]
+  attachments   Attachment[]
+  invoices      Invoice[]
+  activities    Activity[]
+  messages      OutboundMessage[]
+  counters      Counter[]
+}
+
 // ─── Utilisateurs ────────────────────────────────────────────────
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  name         String
-  passwordHash String
-  role         UserRole  @default(MANAGER)
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  lastLoginAt  DateTime?
+  id             String    @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String    @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  email          String    @unique
+  name           String
+  passwordHash   String
+  role           UserRole  @default(MANAGER)
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  lastLoginAt    DateTime?
 
   /// Compte d'un technicien : accès limité à ses propres missions
   technicianId String?     @unique
   technician   Technician? @relation(fields: [technicianId], references: [id])
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }
 
 // ─── Référentiels ────────────────────────────────────────────────
 
 model Client {
-  id          String   @id @default(cuid())
-  name        String
-  email       String?
-  phone       String?
-  contactName String?
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String   @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  name           String
+  email          String?
+  phone          String?
+  contactName    String?
+  createdAt      DateTime @default(now())
   /// Version des liens du portail client : l'incrémenter révoque tous les liens existants
-  portalVersion Int    @default(1)
+  portalVersion  Int      @default(1)
 
   sites         Site[]
   contracts     Contract[]
@@ -178,105 +226,141 @@ model Client {
   interventions Intervention[]
   quotes        Quote[]
   invoices      Invoice[]
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }
 
 model Site {
-  id         String @id @default(cuid())
-  clientId   String
-  label      String
-  address    String
-  postalCode String
-  city       String
-  lat        Float
-  lng        Float
+  id             String @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  clientId       String
+  label          String
+  address        String
+  postalCode     String
+  city           String
+  lat            Float
+  lng            Float
 
   client        Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
   equipments    Equipment[]
   interventions Intervention[]
   requests      InboundRequest[]
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }
 
 model Equipment {
-  id          String        @id @default(cuid())
-  siteId      String
-  type        EquipmentType
-  label       String
-  brand       String?
-  model       String?
-  installedAt DateTime?
+  id             String        @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String        @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  siteId         String
+  type           EquipmentType
+  label          String
+  brand          String?
+  model          String?
+  installedAt    DateTime?
 
   site          Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
   interventions Intervention[]
   requests      InboundRequest[]
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }
 
 model Contract {
-  id              String    @id @default(cuid())
-  clientId        String
-  reference       String    @unique
-  label           String
-  startDate       DateTime
-  endDate         DateTime
-  coversLabor     Boolean   @default(true)
-  coversParts     Boolean   @default(false)
-  coversTravel    Boolean   @default(true)
-  nextServiceDate DateTime?
+  id                    String    @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId        String    @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  clientId              String
+  reference             String
+  label                 String
+  startDate             DateTime
+  endDate               DateTime
+  coversLabor           Boolean   @default(true)
+  coversParts           Boolean   @default(false)
+  coversTravel          Boolean   @default(true)
+  nextServiceDate       DateTime?
   /// Périodicité de l'entretien préventif (mois) ; null = pas d'entretien planifié automatiquement
   serviceIntervalMonths Int?
 
   client        Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
   interventions Intervention[]
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, reference])
 }
 
 model Technician {
-  id        String          @id @default(cuid())
-  firstName String
-  lastName  String
-  email     String          @unique
-  phone     String?
-  skills    EquipmentType[]
-  baseLat   Float
-  baseLng   Float
-  active    Boolean         @default(true)
+  id             String          @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String          @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  firstName      String
+  lastName       String
+  email          String
+  phone          String?
+  skills         EquipmentType[]
+  baseLat        Float
+  baseLng        Float
+  active         Boolean         @default(true)
 
   interventions Intervention[]
   user          User?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
 }
 
 model CatalogItem {
   id             String        @id @default(cuid())
-  code           String        @unique
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String        @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  code           String
   kind           QuoteLineKind
   label          String
   unitPriceCents Int
   /// Mots-clés détectés dans les notes des techniciens
   keywords       String[]
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
 }
 
 // ─── Flux métier ─────────────────────────────────────────────────
 
 model InboundRequest {
-  id          String         @id @default(cuid())
-  channel     RequestChannel @default(EMAIL)
-  fromName    String
-  fromEmail   String
-  subject     String
-  body        String
-  receivedAt  DateTime       @default(now())
+  id             String         @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String         @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  channel        RequestChannel @default(EMAIL)
+  fromName       String
+  fromEmail      String
+  subject        String
+  body           String
+  receivedAt     DateTime       @default(now())
   /// Identifiant du message d'origine (Message-ID) : évite les doublons
-  externalId  String?        @unique
-  status      RequestStatus  @default(NEW)
-  attachments Int            @default(0)
+  externalId     String?
+  status         RequestStatus  @default(NEW)
+  attachments    Int            @default(0)
 
   // Résultat d'analyse IA
-  category        RequestCategory?
-  priority        Priority?
-  summary         String?
-  symptoms        String[]
-  suggestedAction SuggestedAction?
-  confidence      Float?
-  aiProvider      String?
-  analyzedAt      DateTime?
+  category         RequestCategory?
+  priority         Priority?
+  summary          String?
+  symptoms         String[]
+  suggestedAction  SuggestedAction?
+  confidence       Float?
+  aiProvider       String?
+  analyzedAt       DateTime?
   /// Coordonnées repérées dans le message (pour créer la fiche client)
   extractedPhone   String?
   extractedAddress String?
@@ -290,13 +374,17 @@ model InboundRequest {
   equipment    Equipment?    @relation(fields: [equipmentId], references: [id])
   intervention Intervention?
   quote        Quote?
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@unique([organizationId, externalId])
   @@index([status, receivedAt])
 }
 
 model Intervention {
   id               String             @id @default(cuid())
-  number           Int                @unique
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId   String             @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  number           Int
   type             InterventionType   @default(BREAKDOWN)
   priority         Priority           @default(NORMAL)
   status           InterventionStatus @default(TO_SCHEDULE)
@@ -325,23 +413,27 @@ model Intervention {
   /// Entretien préventif généré à partir de ce contrat
   contractId   String?
 
-  client     Client          @relation(fields: [clientId], references: [id])
-  site       Site            @relation(fields: [siteId], references: [id])
-  equipment  Equipment?      @relation(fields: [equipmentId], references: [id])
-  technician Technician?     @relation(fields: [technicianId], references: [id])
-  request    InboundRequest? @relation(fields: [requestId], references: [id])
-  contract   Contract?       @relation(fields: [contractId], references: [id])
-  report      Report?
-  quotes      Quote[]
-  attachments Attachment[]
-  invoices    Invoice[]
+  client       Client          @relation(fields: [clientId], references: [id])
+  site         Site            @relation(fields: [siteId], references: [id])
+  equipment    Equipment?      @relation(fields: [equipmentId], references: [id])
+  technician   Technician?     @relation(fields: [technicianId], references: [id])
+  request      InboundRequest? @relation(fields: [requestId], references: [id])
+  contract     Contract?       @relation(fields: [contractId], references: [id])
+  report       Report?
+  quotes       Quote[]
+  attachments  Attachment[]
+  invoices     Invoice[]
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@unique([organizationId, number])
   @@index([technicianId, scheduledStart])
   @@index([status])
 }
 
 model Report {
   id             String       @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String       @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
   interventionId String       @unique
   status         ReportStatus @default(DRAFT)
   voiceNote      String
@@ -363,25 +455,31 @@ model Report {
   intervention Intervention @relation(fields: [interventionId], references: [id], onDelete: Cascade)
   quote        Quote?
   invoice      Invoice?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }
 
 model Quote {
-  id          String      @id @default(cuid())
-  number      String      @unique
-  status      QuoteStatus @default(DRAFT)
-  title       String
-  notes       String?
+  id             String      @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String      @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  number         String
+  status         QuoteStatus @default(DRAFT)
+  title          String
+  notes          String?
   /// Points que le responsable doit contrôler avant validation
-  warnings    String[]
-  vatRate     Float       @default(0.2)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  validatedAt DateTime?
-  sentAt      DateTime?
-  decidedAt   DateTime?
+  warnings       String[]
+  vatRate        Float       @default(0.2)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  validatedAt    DateTime?
+  sentAt         DateTime?
+  decidedAt      DateTime?
   /// Décision du client (portail) : nom du signataire et motif éventuel de refus
-  decisionBy   String?
-  decisionNote String?
+  decisionBy     String?
+  decisionNote   String?
 
   clientId       String
   interventionId String?
@@ -394,6 +492,10 @@ model Quote {
   request      InboundRequest? @relation(fields: [requestId], references: [id])
   lines        QuoteLine[]
   invoice      Invoice?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, number])
 }
 
 model QuoteLine {
@@ -413,6 +515,8 @@ model QuoteLine {
 /// Le contenu est stocké hors base (StorageService) sous `storageKey`.
 model Attachment {
   id             String         @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String         @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
   interventionId String
   kind           AttachmentKind
   filename       String
@@ -424,8 +528,10 @@ model Attachment {
   createdAt      DateTime       @default(now())
 
   intervention Intervention @relation(fields: [interventionId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([interventionId])
+  @@index([organizationId])
 }
 
 // ─── Facturation ─────────────────────────────────────────────────
@@ -434,7 +540,9 @@ model Attachment {
 /// une facture émise ne se supprime pas : elle s'annule par un avoir numéroté.
 model Invoice {
   id               String         @id @default(cuid())
-  number           String?        @unique
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId   String         @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  number           String?
   status           InvoiceStatus  @default(DRAFT)
   title            String
   notes            String?
@@ -446,7 +554,7 @@ model Invoice {
   paymentMethod    PaymentMethod?
   cancelledAt      DateTime?
   cancelReason     String?
-  creditNoteNumber String?        @unique
+  creditNoteNumber String?
 
   clientId       String
   quoteId        String? @unique
@@ -458,7 +566,10 @@ model Invoice {
   intervention Intervention? @relation(fields: [interventionId], references: [id])
   report       Report?       @relation(fields: [reportId], references: [id])
   lines        InvoiceLine[]
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@unique([organizationId, number])
+  @@unique([organizationId, creditNoteNumber])
   @@index([status, dueAt])
 }
 
@@ -478,50 +589,64 @@ model InvoiceLine {
 
 /// Journal d'audit : chaque action de l'IA ou d'un humain est tracée.
 model Activity {
-  id         String        @id @default(cuid())
-  createdAt  DateTime      @default(now())
-  actor      ActivityActor
+  id             String        @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String        @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  createdAt      DateTime      @default(now())
+  actor          ActivityActor
   /// Nom de l'utilisateur à l'origine de l'action (si humaine)
-  actorName  String?
-  type       String
-  message    String
-  entityType String
-  entityId   String
+  actorName      String?
+  type           String
+  message        String
+  entityType     String
+  entityId       String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([entityId])
   @@index([createdAt])
+  @@index([organizationId])
 }
 
 /// Messages sortants (emails clients, missions techniciens, SMS).
 /// Boîte d'envoi : créés en PENDING dans la transaction métier, puis expédiés
 /// en arrière-plan avec nouvelles tentatives (OutboxService).
 model OutboundMessage {
-  id          String         @id @default(cuid())
-  createdAt   DateTime       @default(now())
-  channel     MessageChannel @default(EMAIL)
-  recipient   String
-  subject     String
-  body        String
-  entityType  String
-  entityId    String
+  id             String         @id @default(cuid())
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String         @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  createdAt      DateTime       @default(now())
+  channel        MessageChannel @default(EMAIL)
+  recipient      String
+  subject        String
+  body           String
+  entityType     String
+  entityId       String
   /// Pièces jointes générées à l'envoi : [{ kind: "REPORT_PDF" | "QUOTE_PDF", id }]
-  attachments Json           @default("[]")
+  attachments    Json           @default("[]")
 
-  status      MessageStatus  @default(PENDING)
-  attempts    Int            @default(0)
-  nextAttemptAt DateTime     @default(now())
-  lastError   String?
+  status        MessageStatus @default(PENDING)
+  attempts      Int           @default(0)
+  nextAttemptAt DateTime      @default(now())
+  lastError     String?
   /// Transport utilisé : smtp, twilio, log (simulation)…
-  transport   String?
-  providerId  String?
-  sentAt      DateTime?
+  transport     String?
+  providerId    String?
+  sentAt        DateTime?
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([entityId])
   @@index([status, nextAttemptAt])
+  @@index([organizationId])
 }
 
-/// Compteurs de numérotation (interventions, devis…) incrémentés atomiquement.
+/// Compteurs de numérotation (interventions, devis…) incrémentés atomiquement, par entreprise.
 model Counter {
-  key   String @id
-  value Int
+  /// Renseigné par l'extension de cloisonnement ; le défaut (toujours NULL) fait échouer toute création hors contexte
+  organizationId String @default(dbgenerated("current_setting('app.organization_id'::text, true)"))
+  key            String
+  value          Int
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, key])
 }

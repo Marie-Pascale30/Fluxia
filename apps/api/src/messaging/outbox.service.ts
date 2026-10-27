@@ -1,5 +1,7 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { asOrganization, asSystem } from '../common/tenant.js';
 import type { OutboundMessage } from '../generated/prisma/client.js';
+import { OrganizationService } from '../organizations/organizations.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
     emailTransportFromEnv,
@@ -35,7 +37,10 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
     private timer?: NodeJS.Timeout;
     private running = false;
 
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly organizations: OrganizationService,
+    ) {}
 
     onModuleInit() {
         this.logger.log(`Transports : email=${this.email.name}, sms=${this.sms.name}`);
@@ -60,12 +65,15 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
         if (this.running) return;
         this.running = true;
         try {
-            const batch = await this.prisma.outboundMessage.findMany({
-                where: { status: 'PENDING', nextAttemptAt: { lte: new Date() } },
-                orderBy: { createdAt: 'asc' },
-                take: 20,
-            });
-            for (const message of batch) await this.deliver(message);
+            // Relève transverse ; l'envoi (PDF, coordonnées de l'expéditeur) se fait ensuite dans l'entreprise du message
+            const batch = await asSystem(() =>
+                this.prisma.outboundMessage.findMany({
+                    where: { status: 'PENDING', nextAttemptAt: { lte: new Date() } },
+                    orderBy: { createdAt: 'asc' },
+                    take: 20,
+                }),
+            );
+            for (const message of batch) await asOrganization(message.organizationId, () => this.deliver(message));
         } catch (error) {
             this.logger.error(`Boîte d'envoi : ${(error as Error).message}`);
         } finally {
@@ -105,13 +113,17 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
 
     private async send(message: OutboundMessage): Promise<DeliveryReceipt> {
         switch (message.channel) {
-            case 'EMAIL':
+            case 'EMAIL': {
+                const company = await this.organizations.current();
                 return this.email.send({
+                    fromName: company.name,
+                    replyTo: company.email,
                     to: message.recipient,
                     subject: message.subject,
                     text: message.body,
                     attachments: await this.attachments(message),
                 });
+            }
             case 'SMS':
                 return this.sms.send(message.recipient, message.body);
             case 'PUSH':

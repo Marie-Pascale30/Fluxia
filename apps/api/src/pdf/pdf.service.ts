@@ -1,19 +1,13 @@
 import { Injectable, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import { formatShortDateFr, formatTimeFr } from '../common/dates.js';
+import type { Organization } from '../generated/prisma/client.js';
 import { OutboxService } from '../messaging/outbox.service.js';
+import { OrganizationService } from '../organizations/organizations.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { quoteTotals } from '../reports/billing.js';
 import { readParts } from '../reports/parts.js';
 import { StorageService } from '../storage/storage.service.js';
-
-const COMPANY = {
-    name: process.env.COMPANY_NAME ?? 'Fluxia Maintenance',
-    address: process.env.COMPANY_ADDRESS ?? '',
-    legal: process.env.COMPANY_LEGAL ?? '',
-    email: process.env.COMPANY_EMAIL ?? '',
-    phone: process.env.COMPANY_PHONE ?? '',
-};
 
 const INK = '#182235';
 const MUTED = '#6c778a';
@@ -25,6 +19,9 @@ const money = (cents: number) =>
 
 type Doc = PDFKit.PDFDocument;
 
+/** Délai de paiement figé à l'émission (le réglage de l'entreprise peut changer depuis). */
+const termsDays = (issued: Date, due: Date) => Math.max(0, Math.round((due.getTime() - issued.getTime()) / 86_400_000));
+
 function toBuffer(doc: Doc): Promise<Buffer> {
     return new Promise((resolve, reject) => {
         const chunks: Buffer[] = [];
@@ -35,10 +32,11 @@ function toBuffer(doc: Doc): Promise<Buffer> {
     });
 }
 
-function header(doc: Doc, title: string, reference: string, date: Date) {
-    doc.fillColor(INK).font('Helvetica-Bold').fontSize(18).text(COMPANY.name, MARGIN, MARGIN);
+/** En-tête aux coordonnées de l'entreprise émettrice (paramètres de l'entreprise). */
+function header(doc: Doc, company: Organization, title: string, reference: string, date: Date) {
+    doc.fillColor(INK).font('Helvetica-Bold').fontSize(18).text(company.name, MARGIN, MARGIN);
     doc.font('Helvetica').fontSize(8.5).fillColor(MUTED);
-    for (const line of [COMPANY.address, [COMPANY.phone, COMPANY.email].filter(Boolean).join(' · '), COMPANY.legal]) {
+    for (const line of [company.address, [company.phone, company.email].filter(Boolean).join(' · '), company.legal]) {
         if (line) doc.text(line);
     }
     doc.font('Helvetica-Bold').fontSize(13).fillColor(INK).text(title, 300, MARGIN, { width: 245, align: 'right' });
@@ -79,6 +77,7 @@ export class PdfService implements OnModuleInit {
         private readonly prisma: PrismaService,
         private readonly storage: StorageService,
         private readonly outbox: OutboxService,
+        private readonly organizations: OrganizationService,
     ) {}
 
     onModuleInit() {
@@ -114,9 +113,10 @@ export class PdfService implements OnModuleInit {
         });
         if (!report) throw new NotFoundException('Rapport introuvable');
         const i = report.intervention;
+        const company = await this.organizations.current();
 
         const doc = new PDFDocument({ size: 'A4', margin: MARGIN, bufferPages: true, info: { Title: `Rapport d'intervention n°${i.number}` } });
-        header(doc, "RAPPORT D'INTERVENTION", `N° ${i.number}`, report.createdAt);
+        header(doc, company, "RAPPORT D'INTERVENTION", `N° ${i.number}`, report.createdAt);
 
         const top = doc.y;
         const left = block(doc, MARGIN, top, 'Client', [i.client.name, i.site.address, `${i.site.postalCode} ${i.site.city}`]);
@@ -169,7 +169,7 @@ export class PdfService implements OnModuleInit {
             );
         }
 
-        footer(doc, `${COMPANY.name} · Rapport d'intervention n°${i.number}`);
+        footer(doc, `${company.name} · Rapport d'intervention n°${i.number}`);
         return toBuffer(doc);
     }
 
@@ -182,9 +182,10 @@ export class PdfService implements OnModuleInit {
         const totals = quoteTotals(invoice.lines, invoice.vatRate);
         const site = invoice.intervention?.site ?? invoice.client.sites[0];
         const reference = invoice.number ?? 'BROUILLON';
+        const company = await this.organizations.current();
 
         const doc = new PDFDocument({ size: 'A4', margin: MARGIN, bufferPages: true, info: { Title: `Facture ${reference}` } });
-        header(doc, invoice.status === 'DRAFT' ? 'FACTURE (BROUILLON)' : 'FACTURE', reference, invoice.issuedAt ?? invoice.createdAt);
+        header(doc, company, invoice.status === 'DRAFT' ? 'FACTURE (BROUILLON)' : 'FACTURE', reference, invoice.issuedAt ?? invoice.createdAt);
 
         const top = doc.y;
         const left = block(doc, MARGIN, top, 'Facturé à', [invoice.client.name, invoice.client.contactName ?? '', site?.address ?? '', site ? `${site.postalCode} ${site.city}` : '']);
@@ -241,9 +242,9 @@ export class PdfService implements OnModuleInit {
         if (doc.y > 690) doc.addPage();
         doc.moveDown(1).font('Helvetica').fontSize(7.5).fillColor(MUTED).text(
             [
-                invoice.dueAt ? `Paiement à ${process.env.PAYMENT_TERMS_DAYS ?? 30} jours, au plus tard le ${formatShortDateFr(invoice.dueAt)}. Pas d'escompte pour paiement anticipé.` : '',
+                invoice.dueAt ? `Paiement à ${termsDays(invoice.issuedAt ?? invoice.createdAt, invoice.dueAt)} jours, au plus tard le ${formatShortDateFr(invoice.dueAt)}. Pas d'escompte pour paiement anticipé.` : '',
                 "En cas de retard de paiement : pénalités au taux de 3 fois le taux d'intérêt légal et indemnité forfaitaire pour frais de recouvrement de 40 € (art. L441-10 du Code de commerce).",
-                COMPANY.legal,
+                company.legal,
             ]
                 .filter(Boolean)
                 .join('\n'),
@@ -252,7 +253,7 @@ export class PdfService implements OnModuleInit {
             { width: 495 },
         );
 
-        footer(doc, `${COMPANY.name} · Facture ${reference}`);
+        footer(doc, `${company.name} · Facture ${reference}`);
         return { filename: `${invoice.number ?? 'facture-brouillon'}.pdf`, content: await toBuffer(doc) };
     }
 
@@ -266,9 +267,10 @@ export class PdfService implements OnModuleInit {
         const totals = quoteTotals(quote.lines, quote.vatRate);
         const issued = quote.validatedAt ?? quote.createdAt;
         const validUntil = new Date(issued.getTime() + 30 * 86_400_000);
+        const company = await this.organizations.current();
 
         const doc = new PDFDocument({ size: 'A4', margin: MARGIN, bufferPages: true, info: { Title: `Devis ${quote.number}` } });
-        header(doc, 'DEVIS', quote.number, issued);
+        header(doc, company, 'DEVIS', quote.number, issued);
 
         const top = doc.y;
         const left = block(doc, MARGIN, top, 'Client', [quote.client.name, quote.client.contactName ?? '', site?.address ?? '', site ? `${site.postalCode} ${site.city}` : '']);
@@ -325,7 +327,7 @@ export class PdfService implements OnModuleInit {
             { width: 240 },
         );
 
-        footer(doc, `${COMPANY.name} · Devis ${quote.number}`);
+        footer(doc, `${company.name} · Devis ${quote.number}`);
         return toBuffer(doc);
     }
 }

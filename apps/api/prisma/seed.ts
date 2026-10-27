@@ -1,7 +1,10 @@
 // Données de démonstration — relatives à la date du jour.
 // Lancer : npm run db:reset (efface et recrée la base).
+// Toutes les entreprises existantes sont supprimées, puis l'entreprise de démo est recréée.
+import { randomBytes } from 'node:crypto';
 import { hashPassword } from '../src/auth/password.js';
 import { addDays, atTime, fromZoned, startOfDay, zonedParts } from '../src/common/dates.js';
+import { asOrganization } from '../src/common/tenant.js';
 import type { EquipmentType, InterventionType } from '../src/generated/prisma/client.js';
 import { createPrismaClient } from '../src/prisma/prisma.service.js';
 
@@ -18,28 +21,26 @@ const plus = (d: Date, minutes: number) => new Date(d.getTime() + minutes * 60_0
 const daysAgo = (n: number) => at(-n, 10);
 
 async function main() {
-    // Nettoyage (ordre inverse des dépendances)
-    await prisma.$transaction([
-        prisma.outboundMessage.deleteMany(),
-        prisma.activity.deleteMany(),
-        prisma.invoiceLine.deleteMany(),
-        prisma.invoice.deleteMany(),
-        prisma.attachment.deleteMany(),
-        prisma.quoteLine.deleteMany(),
-        prisma.quote.deleteMany(),
-        prisma.report.deleteMany(),
-        prisma.intervention.deleteMany(),
-        prisma.inboundRequest.deleteMany(),
-        prisma.contract.deleteMany(),
-        prisma.equipment.deleteMany(),
-        prisma.site.deleteMany(),
-        prisma.client.deleteMany(),
-        prisma.user.deleteMany(),
-        prisma.technician.deleteMany(),
-        prisma.catalogItem.deleteMany(),
-        prisma.counter.deleteMany(),
-    ]);
+    // Nettoyage : la suppression d'une entreprise emporte toutes ses données (cascade)
+    await prisma.organization.deleteMany();
 
+    const organization = await prisma.organization.create({
+        data: {
+            name: 'Fluxia Maintenance',
+            address: '12 rue de la Paix, 75002 Paris',
+            phone: '01 40 00 00 00',
+            email: 'bureau@fluxia.fr',
+            legal: 'SAS au capital de 10 000 € · SIRET 000 000 000 00000 · TVA FR00000000000 (données fictives)',
+            signature: "L'équipe Fluxia Maintenance",
+            // Jeton du webhook d'emails entrants : fixé pour les tests, aléatoire sinon
+            inboundToken: process.env.SEED_INBOUND_TOKEN || randomBytes(24).toString('base64url'),
+        },
+    });
+    // Toutes les données suivantes sont rattachées à l'entreprise de démo
+    await asOrganization(organization.id, seedDemo);
+}
+
+async function seedDemo() {
     // ── Catalogue ────────────────────────────────────────────────
     await prisma.catalogItem.createMany({
         data: [

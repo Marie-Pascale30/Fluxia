@@ -14,6 +14,7 @@ import { InterventionsModule } from './interventions/interventions.module.js';
 import { InvoicesModule } from './invoices/invoices.module.js';
 import { MaintenanceModule } from './maintenance/maintenance.module.js';
 import { MessagingModule } from './messaging/messaging.module.js';
+import { OrganizationsModule } from './organizations/organizations.module.js';
 import { PdfModule } from './pdf/pdf.module.js';
 import { PlanningModule } from './planning/planning.module.js';
 import { PortalModule } from './portal/portal.module.js';
@@ -41,6 +42,7 @@ class HealthController {
         PrismaModule,
         AuthModule,
         ActivityModule,
+        OrganizationsModule,
         AiModule,
         GeoModule,
         StorageModule,

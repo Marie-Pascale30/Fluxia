@@ -10,6 +10,8 @@ export interface AuthUser {
     email: string;
     role: Role;
     technicianId: string | null;
+    organizationId: string;
+    organizationName: string;
 }
 
 export interface JwtPayload {
@@ -17,10 +19,21 @@ export interface JwtPayload {
     role: Role;
     tid: string | null;
     name: string;
+    org: string;
 }
 
-/** Contexte de la requête en cours (utilisateur), accessible partout sans le passer en paramètre. */
-export const requestContext = new AsyncLocalStorage<{ user: AuthUser | null }>();
+/**
+ * Contexte de la requête en cours, accessible partout sans le passer en paramètre :
+ * utilisateur connecté et entreprise dont les données sont accessibles (cf. common/tenant.ts).
+ */
+export interface RequestStore {
+    user: AuthUser | null;
+    organizationId: string | null;
+    /** Accès transverse à toutes les entreprises (asSystem) */
+    system?: boolean;
+}
+
+export const requestContext = new AsyncLocalStorage<RequestStore>();
 
 export const currentUser = () => requestContext.getStore()?.user ?? null;
 

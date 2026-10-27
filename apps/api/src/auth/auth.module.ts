@@ -14,6 +14,8 @@ import { JwtModule, JwtService } from '@nestjs/jwt';
 import { Throttle, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { appSecret } from '../common/secrets.js';
+import { asSystem } from '../common/tenant.js';
+import { OrganizationService, SignupDto } from '../organizations/organizations.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthGuard, RequestContextInterceptor } from './auth.guard.js';
 import type { AuthUser, JwtPayload } from './auth.types.js';
@@ -27,7 +29,6 @@ class LoginDto {
 
 const SESSION_HOURS = 12;
 
-
 @Injectable()
 export class AuthService {
     // Empreinte factice : même temps de réponse que l'email existe ou non
@@ -36,20 +37,39 @@ export class AuthService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly jwt: JwtService,
+        private readonly organizations: OrganizationService,
     ) {}
 
     async login(email: string, password: string) {
-        const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+        // Lecture transverse : l'entreprise de l'utilisateur n'est pas encore connue
+        const user = await asSystem(() =>
+            this.prisma.user.findUnique({ where: { email: email.toLowerCase().trim() }, include: { organization: { select: { name: true } } } }),
+        );
         const valid = await verifyPassword(password, user?.passwordHash ?? (await this.dummyHash));
         if (!user || !valid || !user.active) throw new UnauthorizedException('Email ou mot de passe incorrect');
 
-        await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-        const payload: JwtPayload = { sub: user.id, role: user.role, tid: user.technicianId, name: user.name };
-        return {
-            token: await this.jwt.signAsync(payload),
-            expiresIn: SESSION_HOURS * 3600,
-            user: { id: user.id, name: user.name, email: user.email, role: user.role, technicianId: user.technicianId },
+        await asSystem(() => this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }));
+        return this.session({ ...user, organizationName: user.organization.name });
+    }
+
+    /** Crée l'entreprise et son responsable, puis ouvre directement sa session. */
+    async signup(dto: SignupDto) {
+        const user = await this.organizations.signup(dto);
+        return this.session({ ...user, organizationName: dto.organizationName.trim() });
+    }
+
+    private async session(user: Omit<AuthUser, 'organizationName'> & { organizationName: string }) {
+        const payload: JwtPayload = { sub: user.id, role: user.role, tid: user.technicianId, name: user.name, org: user.organizationId };
+        const authUser: AuthUser = {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            technicianId: user.technicianId,
+            organizationId: user.organizationId,
+            organizationName: user.organizationName,
         };
+        return { token: await this.jwt.signAsync(payload), expiresIn: SESSION_HOURS * 3600, user: authUser };
     }
 }
 
@@ -64,6 +84,14 @@ class AuthController {
     @Throttle({ default: { limit: Number(process.env.LOGIN_RATE_LIMIT ?? 10), ttl: 60_000 } })
     login(@Body() dto: LoginDto) {
         return this.auth.login(dto.email, dto.password);
+    }
+
+    @Public()
+    @Post('signup')
+    @UseGuards(ThrottlerGuard)
+    @Throttle({ default: { limit: Number(process.env.SIGNUP_RATE_LIMIT ?? 5), ttl: 60_000 } })
+    signup(@Body() dto: SignupDto) {
+        return this.auth.signup(dto);
     }
 
     @Get('me')

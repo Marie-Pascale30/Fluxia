@@ -10,6 +10,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Observable } from 'rxjs';
+import { asSystem } from '../common/tenant.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { requestContext, type AuthUser, type JwtPayload, type Role } from './auth.types.js';
 import { IS_PUBLIC, ROLES } from './decorators.js';
@@ -42,8 +43,11 @@ export class AuthGuard implements CanActivate {
             throw new UnauthorizedException('Session expirée, reconnectez-vous');
         }
 
-        // Vérifié à chaque requête : un compte désactivé perd l'accès immédiatement
-        const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+        // Vérifié à chaque requête : un compte désactivé perd l'accès immédiatement.
+        // Lecture transverse : l'entreprise n'est connue qu'une fois l'utilisateur identifié.
+        const user = await asSystem(() =>
+            this.prisma.user.findUnique({ where: { id: payload.sub }, include: { organization: { select: { name: true } } } }),
+        );
         if (!user?.active) throw new UnauthorizedException('Compte désactivé');
 
         const authUser: AuthUser = {
@@ -52,6 +56,8 @@ export class AuthGuard implements CanActivate {
             email: user.email,
             role: user.role,
             technicianId: user.technicianId,
+            organizationId: user.organizationId,
+            organizationName: user.organization.name,
         };
         request.user = authUser;
 
@@ -61,13 +67,18 @@ export class AuthGuard implements CanActivate {
     }
 }
 
-/** Rend l'utilisateur courant disponible via requestContext pendant tout le traitement. */
+/**
+ * Rend l'utilisateur courant et son entreprise disponibles via requestContext pendant tout le traitement :
+ * toutes les requêtes Prisma de la requête HTTP sont restreintes à cette entreprise.
+ */
 @Injectable()
 export class RequestContextInterceptor implements NestInterceptor {
     intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
         const user: AuthUser | null = context.switchToHttp().getRequest().user ?? null;
         return new Observable((subscriber) =>
-            requestContext.run({ user }, () => next.handle().subscribe(subscriber)),
+            requestContext.run({ user, organizationId: user?.organizationId ?? null }, () =>
+                next.handle().subscribe(subscriber),
+            ),
         );
     }
 }

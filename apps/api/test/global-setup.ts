@@ -24,7 +24,7 @@ export default async function setup() {
         APP_TIMEZONE: 'Europe/Paris',
         AI_PROVIDER: 'heuristic',
         GEOCODER: 'none',
-        INBOUND_EMAIL_TOKEN: 'test-inbound-token',
+        SEED_INBOUND_TOKEN: 'test-inbound-token',
         OUTBOX_INTERVAL_MS: '200',
         SMTP_URL: '',
         TWILIO_ACCOUNT_SID: '',

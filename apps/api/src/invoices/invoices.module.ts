@@ -31,9 +31,9 @@ import { PortalService } from '../portal/portal.module.js';
 import { PrismaService, type Tx } from '../prisma/prisma.service.js';
 import { computeBilling, quoteTotals } from '../reports/billing.js';
 import { readParts } from '../reports/parts.js';
+import { OrganizationService } from '../organizations/organizations.module.js';
 import { salesJournalCsv } from './accounting.js';
 
-const PAYMENT_TERMS_DAYS = Number(process.env.PAYMENT_TERMS_DAYS ?? 30);
 const PAYMENT_METHODS = ['TRANSFER', 'CHECK', 'CARD', 'CASH'] as const;
 
 class InvoiceLineDto {
@@ -80,6 +80,7 @@ export class InvoicesService {
         private readonly catalog: CatalogService,
         private readonly clients: ClientsService,
         private readonly portal: PortalService,
+        private readonly organizations: OrganizationService,
     ) {}
 
     async list(status?: string, overdue?: boolean) {
@@ -194,7 +195,8 @@ export class InvoicesService {
             const { year } = zonedParts(now);
             const seq = await nextValue(tx, `invoice:${year}`, 1);
             const number = `F-${year}-${String(seq).padStart(4, '0')}`;
-            const dueAt = addDays(startOfDay(now), PAYMENT_TERMS_DAYS);
+            const { paymentTermsDays } = await this.organizations.current();
+            const dueAt = addDays(startOfDay(now), paymentTermsDays);
             await tx.invoice.update({ where: { id }, data: { status: 'ISSUED', number, issuedAt: now, dueAt } });
             const { totalTtcCents } = quoteTotals(invoice.lines, invoice.vatRate);
             if (invoice.client.email) {
@@ -257,7 +259,8 @@ export class InvoicesService {
             ...invoices.map((i) => entry(i, i.issuedAt!, i.number!)),
             ...credits.map((i) => entry(i, i.cancelledAt!, i.creditNoteNumber!, true)),
         ].sort((a, b) => a.date.getTime() - b.date.getTime());
-        return salesJournalCsv(entries);
+        const { accountRevenue, accountVat } = await this.organizations.current();
+        return salesJournalCsv(entries, { revenue: accountRevenue, vat: accountVat });
     }
 }
 

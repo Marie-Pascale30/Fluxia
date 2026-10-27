@@ -2,7 +2,9 @@ import { Controller, DefaultValuePipe, Get, HttpCode, Injectable, Logger, Module
 import { Cron } from '@nestjs/schedule';
 import { ActivityService } from '../activity/activity.service.js';
 import { addDays, addMonths, APP_TIMEZONE, formatShortDateFr, startOfDay } from '../common/dates.js';
+import { asOrganization, asSystem } from '../common/tenant.js';
 import { InterventionsService } from '../interventions/interventions.service.js';
+import { OrganizationService } from '../organizations/organizations.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 const OPEN = { notIn: ['CLOSED', 'CANCELLED'] as ('CLOSED' | 'CANCELLED')[] };
@@ -20,6 +22,7 @@ export class MaintenanceService {
         private readonly prisma: PrismaService,
         private readonly interventions: InterventionsService,
         private readonly activity: ActivityService,
+        private readonly organizations: OrganizationService,
     ) {}
 
     /** Contrats dont l'entretien tombe dans les `days` prochains jours, ou déjà programmé et non réalisé. */
@@ -104,10 +107,13 @@ export class MaintenanceService {
     @Cron('0 6 * * *', { timeZone: APP_TIMEZONE, name: 'preventive-maintenance' })
     async daily() {
         if (process.env.MAINTENANCE_AUTO === 'false') return;
-        try {
-            await this.generate(Number(process.env.MAINTENANCE_HORIZON_DAYS ?? 30));
-        } catch (error) {
-            this.logger.error(`Génération des entretiens impossible : ${(error as Error).message}`);
+        const horizon = Number(process.env.MAINTENANCE_HORIZON_DAYS ?? 30);
+        for (const organizationId of await asSystem(() => this.organizations.allIds())) {
+            try {
+                await asOrganization(organizationId, () => this.generate(horizon));
+            } catch (error) {
+                this.logger.error(`Génération des entretiens impossible (entreprise ${organizationId}) : ${(error as Error).message}`);
+            }
         }
     }
 }

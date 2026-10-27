@@ -1,6 +1,8 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
+import { asOrganization, asSystem } from '../common/tenant.js';
+import { OrganizationService } from '../organizations/organizations.module.js';
 import { RequestsService } from '../requests/requests.service.js';
 import { stripQuotedReply } from './inbound.js';
 
@@ -8,6 +10,7 @@ import { stripQuotedReply } from './inbound.js';
  * Relève d'une boîte mail en IMAP (Gmail, Outlook, OVH… avec mot de passe d'application).
  * Activée par IMAP_URL=imaps://utilisateur:motdepasse@imap.exemple.fr:993
  * Les messages non lus de la boîte de réception deviennent des demandes, puis sont marqués lus.
+ * Boîte d'une seule entreprise : IMAP_ORGANIZATION_ID, ou l'unique entreprise de la plateforme.
  */
 @Injectable()
 export class ImapPoller implements OnModuleInit, OnModuleDestroy {
@@ -15,7 +18,17 @@ export class ImapPoller implements OnModuleInit, OnModuleDestroy {
     private timer?: NodeJS.Timeout;
     private running = false;
 
-    constructor(private readonly requests: RequestsService) {}
+    constructor(
+        private readonly requests: RequestsService,
+        private readonly organizations: OrganizationService,
+    ) {}
+
+    private async organizationId() {
+        if (process.env.IMAP_ORGANIZATION_ID) return process.env.IMAP_ORGANIZATION_ID;
+        const ids = await asSystem(() => this.organizations.allIds());
+        if (ids.length !== 1) throw new Error('IMAP_ORGANIZATION_ID requis : plusieurs entreprises sur la plateforme');
+        return ids[0];
+    }
 
     onModuleInit() {
         if (!process.env.IMAP_URL) return;
@@ -46,6 +59,7 @@ export class ImapPoller implements OnModuleInit, OnModuleDestroy {
         const client = this.client();
         let imported = 0;
         try {
+            const organizationId = await this.organizationId();
             await client.connect();
             const lock = await client.getMailboxLock(process.env.IMAP_MAILBOX ?? 'INBOX');
             try {
@@ -57,15 +71,18 @@ export class ImapPoller implements OnModuleInit, OnModuleDestroy {
                     const from = mail.from?.value[0];
                     const text = mail.text?.trim();
                     if (from?.address && text) {
-                        await this.requests.ingest(
-                            {
-                                fromName: from.name || from.address.split('@')[0],
-                                fromEmail: from.address.toLowerCase(),
-                                subject: mail.subject?.trim() || '(sans objet)',
-                                body: (stripQuotedReply(text) || text).slice(0, 10_000),
-                                attachments: Math.min(50, mail.attachments.length),
-                            },
-                            mail.messageId,
+                        const address = from.address;
+                        await asOrganization(organizationId, () =>
+                            this.requests.ingest(
+                                {
+                                    fromName: from.name || address.split('@')[0],
+                                    fromEmail: address.toLowerCase(),
+                                    subject: mail.subject?.trim() || '(sans objet)',
+                                    body: (stripQuotedReply(text) || text).slice(0, 10_000),
+                                    attachments: Math.min(50, mail.attachments.length),
+                                },
+                                mail.messageId,
+                            ),
                         );
                         imported++;
                     }

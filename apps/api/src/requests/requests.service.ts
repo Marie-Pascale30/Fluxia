@@ -7,6 +7,7 @@ import { ClientsService } from '../clients/clients.service.js';
 import { formatDateFr, formatTimeFr } from '../common/dates.js';
 import type { InterventionType, Priority, RequestCategory } from '../common/domain.js';
 import { InterventionsService } from '../interventions/interventions.service.js';
+import { OrganizationService } from '../organizations/organizations.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { QuotesService } from '../quotes/quotes.service.js';
 import type {
@@ -17,8 +18,6 @@ import type {
     SendReplyDto,
     UpdateRequestDto,
 } from './requests.dto.js';
-
-const SIGNATURE = process.env.COMPANY_SIGNATURE ?? "L'équipe maintenance"; 
 
 const include = {
     client: { include: { sites: { include: { equipments: true } } } },
@@ -64,6 +63,7 @@ export class RequestsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly activity: ActivityService,
+        private readonly organizations: OrganizationService,
         private readonly ai: AiService,
         private readonly clients: ClientsService,
         private readonly clientAdmin: ClientAdminService,
@@ -100,7 +100,7 @@ export class RequestsService {
      */
     async ingest(dto: IngestRequestDto, externalId?: string) {
         if (externalId) {
-            const existing = await this.prisma.inboundRequest.findUnique({ where: { externalId } });
+            const existing = await this.prisma.inboundRequest.findFirst({ where: { externalId } });
             if (existing) return this.findOne(existing.id);
         }
         const request = await this.prisma.inboundRequest.create({
@@ -171,10 +171,23 @@ export class RequestsService {
         const request = await this.get(id);
         if (request.status === 'CONVERTED') throw new ConflictException('Demande déjà convertie');
 
+        // Chaque identifiant fourni est relu dans le périmètre de l'entreprise avant d'être enregistré :
+        // un lien vers la donnée d'une autre entreprise l'exposerait ensuite via les relations.
+        if (dto.clientId && !(await this.prisma.client.findUnique({ where: { id: dto.clientId } }))) {
+            throw new BadRequestException('Client introuvable');
+        }
         const clientId = dto.clientId ?? request.clientId;
-        if (clientId && (dto.siteId || dto.equipmentId)) {
-            const site = dto.siteId ? await this.prisma.site.findUnique({ where: { id: dto.siteId } }) : null;
-            if (dto.siteId && site?.clientId !== clientId) throw new BadRequestException('Site invalide pour ce client');
+        if ((dto.siteId || dto.equipmentId) && !clientId) throw new BadRequestException("Rattachez d'abord la demande à un client");
+        if (dto.siteId) {
+            const site = await this.prisma.site.findUnique({ where: { id: dto.siteId } });
+            if (site?.clientId !== clientId) throw new BadRequestException('Site invalide pour ce client');
+        }
+        if (dto.equipmentId) {
+            const equipment = await this.prisma.equipment.findUnique({ where: { id: dto.equipmentId }, include: { site: true } });
+            const siteId = dto.siteId ?? (dto.clientId && dto.clientId !== request.clientId ? null : request.siteId);
+            if (!equipment || equipment.site.clientId !== clientId || (siteId && equipment.siteId !== siteId)) {
+                throw new BadRequestException('Équipement invalide pour ce client');
+            }
         }
 
         await this.prisma.inboundRequest.update({
@@ -281,7 +294,8 @@ export class RequestsService {
     async draftReply(id: string) {
         const { request, facts } = await this.replyFacts(id);
         const user = currentUser();
-        const signature = user ? `${user.name}\n${SIGNATURE}` : SIGNATURE;
+        const { signature: team } = await this.organizations.current();
+        const signature = user ? `${user.name}\n${team}` : team;
         const { data, provider } = await this.ai.draftReply({
             fromName: request.fromName,
             subject: request.subject,

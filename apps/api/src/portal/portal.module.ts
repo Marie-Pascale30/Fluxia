@@ -19,6 +19,8 @@ import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-val
 import type { Response } from 'express';
 import { ActivityService } from '../activity/activity.service.js';
 import { Public } from '../auth/decorators.js';
+import { asOrganization, asSystem } from '../common/tenant.js';
+import type { Client } from '../generated/prisma/client.js';
 import { PdfModule } from '../pdf/pdf.module.js';
 import { PdfService } from '../pdf/pdf.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -55,15 +57,23 @@ export class PortalService {
         return this.link(clientId);
     }
 
-    private async client(token: string) {
+    /**
+     * Client désigné par un lien signé ; la suite du traitement s'exécute pour le compte
+     * de son entreprise (aucune donnée d'une autre entreprise n'est accessible).
+     */
+    private async asClient<T>(token: string, fn: (client: Client) => Promise<T>): Promise<T> {
         const claims = readPortalToken(token);
-        const client = claims ? await this.prisma.client.findUnique({ where: { id: claims.clientId } }) : null;
+        const client = claims ? await asSystem(() => this.prisma.client.findUnique({ where: { id: claims.clientId } })) : null;
         if (!client || client.portalVersion !== claims!.version) throw new NotFoundException('Lien invalide ou expiré');
-        return client;
+        return asOrganization(client.organizationId, () => fn(client));
     }
 
-    async summary(token: string) {
-        const client = await this.client(token);
+    summary(token: string) {
+        return this.asClient(token, (client) => this.clientSummary(client));
+    }
+
+    private async clientSummary(client: Client) {
+        const organization = await this.prisma.organization.findUniqueOrThrow({ where: { id: client.organizationId } });
         const [interventions, quotes] = await Promise.all([
             this.prisma.intervention.findMany({
                 where: { clientId: client.id, status: { not: 'CANCELLED' } },
@@ -80,6 +90,7 @@ export class PortalService {
 
         // Uniquement ce que le client doit voir : pas de notes internes ni de journal
         return {
+            company: { name: organization.name, phone: organization.phone, email: organization.email },
             client: { name: client.name, contactName: client.contactName },
             interventions: interventions.map((i) => ({
                 id: i.id,
@@ -106,44 +117,47 @@ export class PortalService {
         };
     }
 
-    async decide(token: string, quoteId: string, dto: DecisionDto) {
-        const client = await this.client(token);
-        const quote = await this.prisma.quote.findFirst({ where: { id: quoteId, clientId: client.id, status: { in: [...VISIBLE_QUOTES] } } });
-        if (!quote) throw new NotFoundException('Devis introuvable');
-        if (quote.status !== 'SENT') throw new ConflictException('Ce devis a déjà reçu une réponse');
+    decide(token: string, quoteId: string, dto: DecisionDto) {
+        return this.asClient(token, async (client) => {
+            const quote = await this.prisma.quote.findFirst({ where: { id: quoteId, clientId: client.id, status: { in: [...VISIBLE_QUOTES] } } });
+            if (!quote) throw new NotFoundException('Devis introuvable');
+            if (quote.status !== 'SENT') throw new ConflictException('Ce devis a déjà reçu une réponse');
 
-        const status = dto.accept ? 'ACCEPTED' : 'REFUSED';
-        await this.prisma.$transaction(async (tx) => {
-            await tx.quote.update({
-                where: { id: quoteId },
-                data: { status, decidedAt: new Date(), decisionBy: dto.name, decisionNote: dto.note },
+            const status = dto.accept ? 'ACCEPTED' : 'REFUSED';
+            await this.prisma.$transaction(async (tx) => {
+                await tx.quote.update({
+                    where: { id: quoteId },
+                    data: { status, decidedAt: new Date(), decisionBy: dto.name, decisionNote: dto.note },
+                });
+                await this.activity.log(
+                    {
+                        actor: 'SYSTEM',
+                        type: dto.accept ? 'QUOTE_ACCEPTED_ONLINE' : 'QUOTE_REFUSED_ONLINE',
+                        message: `Devis ${quote.number} ${dto.accept ? 'accepté' : 'refusé'} en ligne par ${dto.name}${dto.note ? ` : « ${dto.note} »` : ''}`,
+                        entityType: 'QUOTE',
+                        entityId: quoteId,
+                    },
+                    tx,
+                );
             });
-            await this.activity.log(
-                {
-                    actor: 'SYSTEM',
-                    type: dto.accept ? 'QUOTE_ACCEPTED_ONLINE' : 'QUOTE_REFUSED_ONLINE',
-                    message: `Devis ${quote.number} ${dto.accept ? 'accepté' : 'refusé'} en ligne par ${dto.name}${dto.note ? ` : « ${dto.note} »` : ''}`,
-                    entityType: 'QUOTE',
-                    entityId: quoteId,
-                },
-                tx,
-            );
+            return this.clientSummary(client);
         });
-        return this.summary(token);
     }
 
-    async reportPdf(token: string, reportId: string) {
-        const client = await this.client(token);
-        const report = await this.prisma.report.findFirst({ where: { id: reportId, status: 'SENT', intervention: { clientId: client.id } } });
-        if (!report) throw new NotFoundException('Rapport introuvable');
-        return { filename: await this.pdf.reportFilename(reportId), content: await this.pdf.report(reportId) };
+    reportPdf(token: string, reportId: string) {
+        return this.asClient(token, async (client) => {
+            const report = await this.prisma.report.findFirst({ where: { id: reportId, status: 'SENT', intervention: { clientId: client.id } } });
+            if (!report) throw new NotFoundException('Rapport introuvable');
+            return { filename: await this.pdf.reportFilename(reportId), content: await this.pdf.report(reportId) };
+        });
     }
 
-    async quotePdf(token: string, quoteId: string) {
-        const client = await this.client(token);
-        const quote = await this.prisma.quote.findFirst({ where: { id: quoteId, clientId: client.id, status: { in: [...VISIBLE_QUOTES] } } });
-        if (!quote) throw new NotFoundException('Devis introuvable');
-        return { filename: `${quote.number}.pdf`, content: await this.pdf.quote(quoteId) };
+    quotePdf(token: string, quoteId: string) {
+        return this.asClient(token, async (client) => {
+            const quote = await this.prisma.quote.findFirst({ where: { id: quoteId, clientId: client.id, status: { in: [...VISIBLE_QUOTES] } } });
+            if (!quote) throw new NotFoundException('Devis introuvable');
+            return { filename: `${quote.number}.pdf`, content: await this.pdf.quote(quoteId) };
+        });
     }
 }
 
