@@ -4,11 +4,11 @@ import { dispatchNewMission, loginAs } from './helpers';
 test('hors ligne : brouillon conservé, rapport envoyé au retour du réseau', async ({ page, browser }) => {
     test.setTimeout(150_000);
     await loginAs(page, 'julien@fluxia.fr');
-    const fieldUrl = await dispatchNewMission(page);
+    const { fieldUrl, techEmail } = await dispatchNewMission(page);
 
     const techContext = await browser.newContext();
     const tech = await techContext.newPage();
-    await loginAs(tech, 'thomas.martin@fluxia.fr');
+    await loginAs(tech, techEmail);
     await tech.goto(fieldUrl);
 
     const mission = tech.locator('.card', { has: tech.getByRole('heading', { name: 'Restaurant Le Parisien' }) }).first();

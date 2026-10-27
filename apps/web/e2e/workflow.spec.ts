@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { acceptDialogs, expectToast, loginAs } from './helpers';
+import { acceptDialogs, assignRecommended, expectToast, loginAs } from './helpers';
 
 // Parcours complet dans l'interface : demande → intervention → mission → rapport → devis.
 test.describe.configure({ mode: 'serial' });
@@ -32,8 +32,7 @@ test('parcours du responsable puis du technicien', async ({ page, browser }) => 
     await expectToast(page, /Intervention #\d+ créée/);
 
     // 2. Affecter le technicien recommandé puis envoyer la mission
-    await page.locator('.reco.best').getByRole('button').click();
-    await expectToast(page, 'Affectation enregistrée');
+    const techEmail = await assignRecommended(page);
     await page.getByRole('button', { name: /Envoyer la mission/ }).click();
     await expectToast(page, 'Mission envoyée');
     const interventionUrl = page.url();
@@ -43,7 +42,7 @@ test('parcours du responsable puis du technicien', async ({ page, browser }) => 
     // 3. Le technicien se connecte dans une autre session et rédige son compte rendu
     const techContext = await browser.newContext();
     const tech = await techContext.newPage();
-    await loginAs(tech, 'thomas.martin@fluxia.fr');
+    await loginAs(tech, techEmail);
     await expect(tech).toHaveURL(/\/techniciens\//);
     // Accès aux écrans de gestion refusé : retour à sa vue terrain
     await tech.goto('/devis');
