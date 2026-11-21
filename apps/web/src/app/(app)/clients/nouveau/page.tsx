@@ -11,7 +11,7 @@ export default function NewClientPage() {
             <PageHeader title="Nouveau client" subtitle="L'adresse du site est géolocalisée pour calculer les trajets des techniciens." />
             <Card className="mb" title="Fiche client">
                 <ActionForm action={createClient} submitLabel="Créer le client" pendingLabel="Géolocalisation…">
-                    <ClientFields />
+                    <ClientFields identifiers />
                     <div className="label mt">Premier site (facultatif)</div>
                     <SiteFields prefix="site." required={false} />
                 </ActionForm>

@@ -92,8 +92,12 @@ export function computeBilling(
     return { billable, lines, notes, warnings };
 }
 
+/** Montant HT d'une ligne, arrondi au centime (c'est ce montant qui figure sur le document). */
+export const lineTotalCents = (line: { quantity: number; unitPriceCents: number }) => Math.round(line.quantity * line.unitPriceCents);
+
+/** Totaux d'un devis ou d'une facture : somme des lignes arrondies (le total est égal à la somme affichée). */
 export function quoteTotals(lines: { quantity: number; unitPriceCents: number }[], vatRate: number) {
-    const totalHtCents = Math.round(lines.reduce((sum, l) => sum + l.quantity * l.unitPriceCents, 0));
+    const totalHtCents = lines.reduce((sum, l) => sum + lineTotalCents(l), 0);
     const vatCents = Math.round(totalHtCents * vatRate);
     return { totalHtCents, vatCents, totalTtcCents: totalHtCents + vatCents };
 }

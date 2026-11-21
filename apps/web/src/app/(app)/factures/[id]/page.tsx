@@ -25,6 +25,11 @@ export default async function InvoicePage({ params }: PageProps<'/factures/[id]'
                         <a className="btn light sm" href={`/pdf/facture/${i.id}`} target="_blank" rel="noreferrer">
                             PDF
                         </a>
+                        {i.number && (
+                            <a className="btn light sm" href={`/export/facturx/${i.id}`} title="Facture électronique (XML Factur-X, profil EN 16931)">
+                                XML Factur-X
+                            </a>
+                        )}
                         {i.overdue ? <Badge label="En retard" tone="red" /> : <Badge {...INVOICE_STATUS[i.status]} />}
                     </>
                 }

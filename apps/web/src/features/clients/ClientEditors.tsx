@@ -9,7 +9,7 @@ import type { ClientDetail, Equipment } from '@/lib/types';
 export function EditClientForm({ client }: { client: ClientDetail }) {
     return (
         <ActionForm action={updateClient.bind(null, client.id)} submitLabel="Enregistrer" variant="light">
-            <ClientFields defaults={client} />
+            <ClientFields defaults={client} identifiers />
         </ActionForm>
     );
 }

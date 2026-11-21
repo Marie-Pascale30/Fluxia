@@ -5,6 +5,7 @@ import {
     IsEmail,
     IsIn,
     IsLatitude,
+    Matches,
     IsInt,
     IsLongitude,
     IsOptional,
@@ -41,6 +42,8 @@ export class CreateClientDto {
     @IsOptional() @IsEmail() email?: string;
     @IsOptional() @IsString() @MaxLength(30) phone?: string;
     @IsOptional() @IsString() @MaxLength(120) contactName?: string;
+    @IsOptional() @IsString() @Matches(/^(\d{14})?$/, { message: 'SIRET : 14 chiffres' }) siret?: string;
+    @IsOptional() @IsString() @Matches(/^([A-Z]{2}[A-Z0-9]{2,13})?$/, { message: 'Numéro de TVA intracommunautaire invalide' }) vatNumber?: string;
 
     /** Premier site (facultatif) */
     @IsOptional() @ValidateNested() @Type(() => SiteInputDto) site?: SiteInputDto;
@@ -51,6 +54,8 @@ export class UpdateClientDto {
     @IsOptional() @IsEmail() email?: string;
     @IsOptional() @IsString() @MaxLength(30) phone?: string;
     @IsOptional() @IsString() @MaxLength(120) contactName?: string;
+    @IsOptional() @IsString() @Matches(/^(\d{14})?$/, { message: 'SIRET : 14 chiffres' }) siret?: string;
+    @IsOptional() @IsString() @Matches(/^([A-Z]{2}[A-Z0-9]{2,13})?$/, { message: 'Numéro de TVA intracommunautaire invalide' }) vatNumber?: string;
 }
 
 export class EquipmentInputDto {

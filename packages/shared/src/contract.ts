@@ -62,6 +62,8 @@ export const Client = z.object({
     email: z.string().nullable(),
     phone: z.string().nullable(),
     contactName: z.string().nullable(),
+    siret: z.string().nullable(),
+    vatNumber: z.string().nullable(),
 });
 
 export const ClientSummary = Client.extend({
@@ -453,6 +455,8 @@ export const Organization = z.object({
     phone: z.string(),
     email: z.string(),
     legal: z.string(),
+    siret: z.string(),
+    vatNumber: z.string(),
     signature: z.string(),
     paymentTermsDays: z.number().int(),
     accountRevenue: z.string(),

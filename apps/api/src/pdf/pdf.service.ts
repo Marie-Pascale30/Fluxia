@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { Injectable, NotFoundException, type OnModuleInit } from '@nestjs/common';
 import PDFDocument from 'pdfkit';
 import { formatShortDateFr, formatTimeFr } from '../common/dates.js';
@@ -5,7 +7,8 @@ import type { Organization } from '../generated/prisma/client.js';
 import { OutboxService } from '../messaging/outbox.service.js';
 import { OrganizationService } from '../organizations/organizations.module.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { quoteTotals } from '../reports/billing.js';
+import { FACTURX_FILENAME, facturxXml, facturxXmp } from '../invoices/facturx.js';
+import { lineTotalCents, quoteTotals } from '../reports/billing.js';
 import { readParts } from '../reports/parts.js';
 import { StorageService } from '../storage/storage.service.js';
 
@@ -18,6 +21,27 @@ const money = (cents: number) =>
     new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100).replace(/ | /g, ' ');
 
 type Doc = PDFKit.PDFDocument;
+
+// Polices embarquées dans les PDF (exigé par PDF/A) : Arimo, libre et de mêmes dimensions que Helvetica
+const fonts = dirname(createRequire(import.meta.url).resolve('@expo-google-fonts/arimo/package.json'));
+const FONT_REGULAR = join(fonts, '400Regular', 'Arimo_400Regular.ttf');
+const FONT_BOLD = join(fonts, '700Bold', 'Arimo_700Bold.ttf');
+
+/** Document A4 aux polices embarquées ; `archive` produit un PDF/A-3b (factures électroniques). */
+function createDoc(title: string, archive = false): Doc {
+    const doc = new PDFDocument({
+        size: 'A4',
+        margin: MARGIN,
+        bufferPages: true,
+        font: FONT_REGULAR,
+        lang: 'fr-FR',
+        info: { Title: title },
+        ...(archive ? { pdfVersion: '1.7' as const, subset: 'PDF/A-3b' as const, tagged: false } : {}),
+    });
+    doc.registerFont('Helvetica', FONT_REGULAR);
+    doc.registerFont('Helvetica-Bold', FONT_BOLD);
+    return doc;
+}
 
 /** Délai de paiement figé à l'émission (le réglage de l'entreprise peut changer depuis). */
 const termsDays = (issued: Date, due: Date) => Math.max(0, Math.round((due.getTime() - issued.getTime()) / 86_400_000));
@@ -36,7 +60,8 @@ function toBuffer(doc: Doc): Promise<Buffer> {
 function header(doc: Doc, company: Organization, title: string, reference: string, date: Date) {
     doc.fillColor(INK).font('Helvetica-Bold').fontSize(18).text(company.name, MARGIN, MARGIN);
     doc.font('Helvetica').fontSize(8.5).fillColor(MUTED);
-    for (const line of [company.address, [company.phone, company.email].filter(Boolean).join(' · '), company.legal]) {
+    const ids = [company.siret && `SIRET ${company.siret}`, company.vatNumber && `TVA ${company.vatNumber}`].filter(Boolean).join(' · ');
+    for (const line of [company.address, [company.phone, company.email].filter(Boolean).join(' · '), ids, company.legal]) {
         if (line) doc.text(line);
     }
     doc.font('Helvetica-Bold').fontSize(13).fillColor(INK).text(title, 300, MARGIN, { width: 245, align: 'right' });
@@ -115,7 +140,7 @@ export class PdfService implements OnModuleInit {
         const i = report.intervention;
         const company = await this.organizations.current();
 
-        const doc = new PDFDocument({ size: 'A4', margin: MARGIN, bufferPages: true, info: { Title: `Rapport d'intervention n°${i.number}` } });
+        const doc = createDoc(`Rapport d'intervention n°${i.number}`);
         header(doc, company, "RAPPORT D'INTERVENTION", `N° ${i.number}`, report.createdAt);
 
         const top = doc.y;
@@ -184,7 +209,20 @@ export class PdfService implements OnModuleInit {
         const reference = invoice.number ?? 'BROUILLON';
         const company = await this.organizations.current();
 
-        const doc = new PDFDocument({ size: 'A4', margin: MARGIN, bufferPages: true, info: { Title: `Facture ${reference}` } });
+        // Facture émise : PDF/A-3 portant le XML Factur-X (facture électronique) ; brouillon : PDF simple
+        const doc = createDoc(`Facture ${reference}`, !!invoice.number);
+        if (invoice.number) {
+            // `relationship` (AFRelationship) est géré par pdfkit mais absent de ses définitions de types
+            doc.file(Buffer.from(this.facturx(invoice, company), 'utf-8'), {
+                name: FACTURX_FILENAME,
+                type: 'text/xml',
+                relationship: 'Alternative',
+                description: 'Factur-X',
+                creationDate: invoice.issuedAt ?? invoice.createdAt,
+                modifiedDate: invoice.issuedAt ?? invoice.createdAt,
+            } as PDFKit.Mixins.PDFAttachmentOptions);
+            doc.appendXML(facturxXmp());
+        }
         header(doc, company, invoice.status === 'DRAFT' ? 'FACTURE (BROUILLON)' : 'FACTURE', reference, invoice.issuedAt ?? invoice.createdAt);
 
         const top = doc.y;
@@ -218,13 +256,13 @@ export class PdfService implements OnModuleInit {
                 doc.addPage();
                 y = MARGIN;
             }
-            y = row(y, [line.label, String(line.quantity).replace('.', ','), money(line.unitPriceCents), money(Math.round(line.quantity * line.unitPriceCents))]);
+            y = row(y, [line.label, String(line.quantity).replace('.', ','), money(line.unitPriceCents), money(lineTotalCents(line))]);
         }
         doc.moveTo(330, y).lineTo(545, y).strokeColor(LINE).stroke();
         y += 8;
         for (const [label, value, bold] of [
             ['Total HT', money(totals.totalHtCents), false],
-            [`TVA ${Math.round(invoice.vatRate * 100)} %`, money(totals.vatCents), false],
+            [invoice.vatRate === 0 ? 'TVA non applicable, art. 293 B du CGI' : `TVA ${Math.round(invoice.vatRate * 100)} %`, money(totals.vatCents), false],
             ['Net à payer TTC', money(totals.totalTtcCents), true],
         ] as const) {
             doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(bold ? 11 : 9.5).fillColor(INK);
@@ -257,6 +295,55 @@ export class PdfService implements OnModuleInit {
         return { filename: `${invoice.number ?? 'facture-brouillon'}.pdf`, content: await toBuffer(doc) };
     }
 
+    /** XML Factur-X (EN 16931) d'une facture émise, seul (téléchargement, dépôt sur une plateforme agréée). */
+    async invoiceXml(id: string) {
+        const invoice = await this.prisma.invoice.findUnique({
+            where: { id },
+            include: { client: { include: { sites: { take: 1 } } }, lines: { orderBy: { position: 'asc' } }, intervention: { include: { site: true } } },
+        });
+        if (!invoice?.number) throw new NotFoundException('Facture émise introuvable');
+        return { filename: `${invoice.number}-factur-x.xml`, content: this.facturx(invoice, await this.organizations.current()) };
+    }
+
+    private facturx(
+        invoice: {
+            number: string | null;
+            issuedAt: Date | null;
+            createdAt: Date;
+            dueAt: Date | null;
+            vatRate: number;
+            title: string;
+            lines: { kind: string; label: string; quantity: number; unitPriceCents: number }[];
+            client: { name: string; email: string | null; siret: string | null; vatNumber: string | null; sites: { address: string; postalCode: string; city: string }[] };
+            intervention: { site: { address: string; postalCode: string; city: string } } | null;
+        },
+        company: Organization,
+    ) {
+        const issued = invoice.issuedAt ?? invoice.createdAt;
+        const site = invoice.intervention?.site ?? invoice.client.sites[0];
+        return facturxXml(
+            {
+                number: invoice.number!,
+                issuedAt: issued,
+                dueAt: invoice.dueAt,
+                vatRate: invoice.vatRate,
+                title: invoice.title,
+                lines: invoice.lines,
+                paymentTermsDays: invoice.dueAt ? termsDays(issued, invoice.dueAt) : company.paymentTermsDays,
+            },
+            { name: company.name, siret: company.siret, vatNumber: company.vatNumber, address: company.address, email: company.email },
+            {
+                name: invoice.client.name,
+                siret: invoice.client.siret,
+                vatNumber: invoice.client.vatNumber,
+                email: invoice.client.email,
+                address: site?.address,
+                postalCode: site?.postalCode,
+                city: site?.city,
+            },
+        );
+    }
+
     async quote(id: string): Promise<Buffer> {
         const quote = await this.prisma.quote.findUnique({
             where: { id },
@@ -269,7 +356,7 @@ export class PdfService implements OnModuleInit {
         const validUntil = new Date(issued.getTime() + 30 * 86_400_000);
         const company = await this.organizations.current();
 
-        const doc = new PDFDocument({ size: 'A4', margin: MARGIN, bufferPages: true, info: { Title: `Devis ${quote.number}` } });
+        const doc = createDoc(`Devis ${quote.number}`);
         header(doc, company, 'DEVIS', quote.number, issued);
 
         const top = doc.y;

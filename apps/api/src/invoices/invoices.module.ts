@@ -189,6 +189,10 @@ export class InvoicesService {
         if (!invoice.lines.length || invoice.lines.some((l) => l.unitPriceCents === 0)) {
             throw new BadRequestException('Toutes les lignes doivent avoir un prix avant émission');
         }
+        // Mention obligatoire, et identifiant de l'émetteur dans la facture électronique
+        if (!/^\d{14}$/.test((await this.organizations.current()).siret)) {
+            throw new BadRequestException("Renseignez le SIRET de l'entreprise (page Paramètres) avant d'émettre une facture");
+        }
         const portal = await this.portal.link(invoice.clientId);
         await this.prisma.$transaction(async (tx) => {
             const now = new Date();
@@ -292,6 +296,14 @@ class InvoicesController {
     @Get('invoices/:id')
     get(@Param('id') id: string) {
         return this.invoices.findOne(id);
+    }
+
+    /** Facture électronique seule (XML Factur-X, profil EN 16931). */
+    @Get('invoices/:id/facturx')
+    async invoiceXml(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
+        const { filename, content } = await this.pdf.invoiceXml(id);
+        res.set({ 'content-type': 'application/xml; charset=utf-8', 'content-disposition': `attachment; filename="${filename}"`, 'cache-control': 'no-store' });
+        return new StreamableFile(Buffer.from(content, 'utf-8'));
     }
 
     @Get('invoices/:id/pdf')

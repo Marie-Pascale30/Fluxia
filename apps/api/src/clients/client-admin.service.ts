@@ -42,6 +42,8 @@ export class ClientAdminService {
                 email: dto.email?.toLowerCase(),
                 phone: dto.phone,
                 contactName: dto.contactName,
+                siret: dto.siret || null,
+                vatNumber: dto.vatNumber || null,
                 sites: site ? { create: site } : undefined,
             },
             include: { sites: true },

@@ -69,6 +69,38 @@ describe('Facturation', () => {
         expect((await call('DELETE', `/invoices/${draft.id}`)).status).toBe(200);
     });
 
+    it('exige le SIRET de l’entreprise pour émettre', async () => {
+        const draft = (await call('POST', `/quotes/${(await acceptedQuote()).id}/invoice`)).body;
+        const { siret } = (await call('GET', '/organization')).body;
+        await call('PATCH', '/organization', { siret: '' });
+        const refused = await call('POST', `/invoices/${draft.id}/issue`);
+        expect(refused.status).toBe(400);
+        expect(refused.body.message).toContain('SIRET');
+        await call('PATCH', '/organization', { siret });
+        expect((await call('POST', `/invoices/${draft.id}/issue`)).status).toBe(200);
+    });
+
+    it('produit une facture électronique Factur-X : PDF/A-3 avec XML EN 16931 embarqué', async () => {
+        const issued = expectContract(S.Invoice.array(), (await call('GET', '/invoices')).body).find((i) => i.number)!;
+        const xml = await fetch(`${BASE}/invoices/${issued.id}/facturx`, { headers: { authorization: `Bearer ${token}` } });
+        expect(xml.headers.get('content-type')).toContain('application/xml');
+        const body = await xml.text();
+        expect(body).toContain('urn:cen.eu:en16931:2017');
+        expect(body).toContain(`<ram:ID>${issued.number}</ram:ID>`);
+        expect(body).toContain(`<ram:GrandTotalAmount>${(issued.totalTtcCents / 100).toFixed(2)}</ram:GrandTotalAmount>`);
+
+        const pdf = Buffer.from(await (await fetch(`${BASE}/invoices/${issued.id}/pdf`, { headers: { authorization: `Bearer ${token}` } })).arrayBuffer()).toString('latin1');
+        expect(pdf.startsWith('%PDF-1.7')).toBe(true);
+        expect(pdf).toContain('factur-x.xml');
+        expect(pdf).toContain('/AFRelationship /Alternative');
+        expect(pdf).toContain('<pdfaid:part>3</pdfaid:part>');
+        expect(pdf).toContain('<fx:ConformanceLevel>EN 16931</fx:ConformanceLevel>');
+
+        // Un brouillon n'est pas une facture : ni XML, ni PDF/A
+        const draft = (await call('POST', `/quotes/${(await acceptedQuote()).id}/invoice`)).body;
+        expect((await call('GET', `/invoices/${draft.id}/facturx`)).status).toBe(404);
+    });
+
     it('génère le PDF et exporte un journal des ventes équilibré', async () => {
         const invoices = expectContract(S.Invoice.array(), (await call('GET', '/invoices')).body);
         const issued = invoices.find((i) => i.number)!;

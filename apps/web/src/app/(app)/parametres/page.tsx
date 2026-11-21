@@ -52,6 +52,16 @@ export default async function SettingsPage({ searchParams }: PageProps<'/paramet
                         Adresse
                         <input name="address" className="input" maxLength={300} defaultValue={organization.address} placeholder="12 rue Exemple, 75011 Paris" />
                     </label>
+                    <div className="form-row">
+                        <label>
+                            SIRET (obligatoire pour émettre des factures)
+                            <input name="siret" className="input" inputMode="numeric" pattern="\d{14}" title="14 chiffres" defaultValue={organization.siret} />
+                        </label>
+                        <label>
+                            N° de TVA intracommunautaire
+                            <input name="vatNumber" className="input" pattern="[A-Za-z]{2}[A-Za-z0-9]{2,13}" defaultValue={organization.vatNumber} placeholder="FR12345678901" />
+                        </label>
+                    </div>
                     <label>
                         Mentions légales (obligatoires sur les factures)
                         <input
@@ -59,7 +69,7 @@ export default async function SettingsPage({ searchParams }: PageProps<'/paramet
                             className="input"
                             maxLength={500}
                             defaultValue={organization.legal}
-                            placeholder="SAS au capital de 10 000 € · SIRET … · RCS … · TVA FR…"
+                            placeholder="SAS au capital de 10 000 € · RCS Paris B 123 456 789"
                         />
                     </label>
                     <label>

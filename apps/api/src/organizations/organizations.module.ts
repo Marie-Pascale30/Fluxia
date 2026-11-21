@@ -25,6 +25,8 @@ export class UpdateOrganizationDto {
     @IsOptional() @IsString() @MaxLength(40) phone?: string;
     @IsOptional() @IsString() @MaxLength(120) email?: string;
     @IsOptional() @IsString() @MaxLength(500) legal?: string;
+    @IsOptional() @IsString() @Matches(/^(\d{14})?$/, { message: 'SIRET : 14 chiffres' }) siret?: string;
+    @IsOptional() @IsString() @Matches(/^([A-Z]{2}[A-Z0-9]{2,13})?$/, { message: 'Numéro de TVA intracommunautaire invalide (ex. FR12345678901)' }) vatNumber?: string;
     @IsOptional() @IsString() @MaxLength(200) signature?: string;
     @IsOptional() @IsInt() @Min(0) @Max(60) paymentTermsDays?: number;
     @IsOptional() @IsString() @Matches(/^\d{3,10}$/, { message: 'Compte de produits : chiffres uniquement' }) accountRevenue?: string;

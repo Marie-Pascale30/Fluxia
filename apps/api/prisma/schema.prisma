@@ -166,8 +166,11 @@ model Organization {
   address              String             @default("")
   phone                String             @default("")
   email                String             @default("")
-  /// Mentions légales : forme juridique, SIRET, n° de TVA…
+  /// Mentions légales : forme juridique, capital, RCS…
   legal                String             @default("")
+  /// Identifiants exigés sur les factures et dans la facture électronique (Factur-X)
+  siret                String             @default("")
+  vatNumber            String             @default("")
   signature            String             @default("L'équipe maintenance")
   paymentTermsDays     Int                @default(30)
   accountRevenue       String             @default("706000")
@@ -242,6 +245,9 @@ model Client {
   email          String?
   phone          String?
   contactName    String?
+  /// Client professionnel : identifiants repris dans la facture électronique
+  siret          String?
+  vatNumber      String?
   createdAt      DateTime @default(now())
   /// Version des liens du portail client : l'incrémenter révoque tous les liens existants
   portalVersion  Int      @default(1)

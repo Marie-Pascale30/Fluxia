@@ -4,8 +4,11 @@ import type { EquipmentType } from '@/lib/types';
 
 export function ClientFields({
     defaults = {},
+    identifiers = false,
 }: {
-    defaults?: { name?: string | null; email?: string | null; phone?: string | null; contactName?: string | null };
+    defaults?: { name?: string | null; email?: string | null; phone?: string | null; contactName?: string | null; siret?: string | null; vatNumber?: string | null };
+    /** Identifiants d'entreprise (clients professionnels : repris dans la facture électronique) */
+    identifiers?: boolean;
 }) {
     return (
         <>
@@ -29,6 +32,18 @@ export function ClientFields({
                     <input name="phone" type="tel" className="input" defaultValue={defaults.phone ?? ''} />
                 </label>
             </div>
+            {identifiers && (
+                <div className="form-row">
+                    <label>
+                        SIRET (client professionnel)
+                        <input name="siret" className="input" inputMode="numeric" pattern="\d{14}" title="14 chiffres" defaultValue={defaults.siret ?? ''} />
+                    </label>
+                    <label>
+                        N° de TVA intracommunautaire
+                        <input name="vatNumber" className="input" pattern="[A-Za-z]{2}[A-Za-z0-9]{2,13}" defaultValue={defaults.vatNumber ?? ''} placeholder="FR12345678901" />
+                    </label>
+                </div>
+            )}
         </>
     );
 }

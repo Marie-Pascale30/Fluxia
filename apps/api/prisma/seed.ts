@@ -30,7 +30,9 @@ async function main() {
             address: '12 rue de la Paix, 75002 Paris',
             phone: '01 40 00 00 00',
             email: 'bureau@fluxia.fr',
-            legal: 'SAS au capital de 10 000 € · SIRET 000 000 000 00000 · TVA FR00000000000 (données fictives)',
+            legal: 'SAS au capital de 10 000 € · RCS Paris (données fictives)',
+            siret: '12345678900012',
+            vatNumber: 'FR32123456789',
             signature: "L'équipe Fluxia Maintenance",
             // Jeton du webhook d'emails entrants : fixé pour les tests, aléatoire sinon
             inboundToken: process.env.SEED_INBOUND_TOKEN || randomBytes(24).toString('base64url'),

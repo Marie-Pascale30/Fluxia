@@ -281,6 +281,8 @@ export async function createClient(_: ActionResult | null, form: FormData): Prom
             email: str(form, 'email'),
             phone: str(form, 'phone'),
             contactName: str(form, 'contactName'),
+            siret: str(form, 'siret')?.replace(/\s/g, ''),
+            vatNumber: str(form, 'vatNumber')?.replace(/\s/g, '').toUpperCase(),
             site: withSite ? siteFrom(form, 'site.') : undefined,
         });
         return { message: `Client « ${client.name} » créé`, redirectTo: `/clients/${client.id}` };
@@ -294,6 +296,8 @@ export async function updateClient(id: string, _: ActionResult | null, form: For
             email: str(form, 'email'),
             phone: str(form, 'phone'),
             contactName: str(form, 'contactName'),
+            siret: text(form, 'siret')?.replace(/\s/g, ''),
+            vatNumber: text(form, 'vatNumber')?.replace(/\s/g, '').toUpperCase(),
         });
         return 'Fiche client mise à jour';
     });
@@ -562,6 +566,8 @@ export async function updateOrganization(_: ActionResult | null, form: FormData)
             phone: text(form, 'phone'),
             email: text(form, 'email'),
             legal: text(form, 'legal'),
+            siret: text(form, 'siret')?.replace(/\s/g, ''),
+            vatNumber: text(form, 'vatNumber')?.replace(/\s/g, '').toUpperCase(),
             signature: text(form, 'signature'),
             paymentTermsDays: terms ? Number(terms) : undefined,
             accountRevenue: text(form, 'accountRevenue'),
