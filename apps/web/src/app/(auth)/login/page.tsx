@@ -5,7 +5,7 @@ import { LoginForm } from './LoginForm';
 export const metadata = { title: 'Connexion' };
 
 export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
-    const { next, expired } = await searchParams;
+    const { next, expired, supprime } = await searchParams;
 
     return (
         <main className="auth-page">
@@ -15,6 +15,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
                 </div>
                 <p className="muted">Le bureau administratif IA des entreprises de maintenance.</p>
                 {expired && <Notice tone="warning">Votre session a expiré, reconnectez-vous.</Notice>}
+                {supprime && <Notice tone="success">Votre entreprise et toutes ses données ont été supprimées.</Notice>}
                 <LoginForm next={typeof next === 'string' ? next : undefined} />
                 <p className="muted small mt">
                     <Link href="/mot-de-passe-oublie">Mot de passe oublié ?</Link>

@@ -28,7 +28,7 @@ describe('Inscription', () => {
     const email = `nina.roux.${Date.now()}@clim-express.fr`;
 
     it('crée l’entreprise et son responsable, et ouvre la session', async () => {
-        const res = await call('POST', '/auth/signup', { organizationName: 'Clim Express', name: 'Nina Roux', email, password: 'un-mot-de-passe-solide' });
+        const res = await call('POST', '/auth/signup', { organizationName: 'Clim Express', name: 'Nina Roux', email, password: 'un-mot-de-passe-solide', acceptTerms: true });
         expect(res.status).toBe(201);
         other = res.body.token;
         expect(res.body.user).toMatchObject({ name: 'Nina Roux', role: 'MANAGER', organizationName: 'Clim Express' });
@@ -40,12 +40,12 @@ describe('Inscription', () => {
     });
 
     it('refuse un email déjà utilisé, quelle que soit l’entreprise', async () => {
-        const res = await call('POST', '/auth/signup', { organizationName: 'Autre', name: 'Julien Bis', email: 'julien@fluxia.fr', password: 'un-mot-de-passe-solide' });
+        const res = await call('POST', '/auth/signup', { organizationName: 'Autre', name: 'Julien Bis', email: 'julien@fluxia.fr', password: 'un-mot-de-passe-solide', acceptTerms: true });
         expect(res.status).toBe(409);
     });
 
     it('refuse un mot de passe trop court', async () => {
-        const res = await call('POST', '/auth/signup', { organizationName: 'Autre', name: 'Paul', email: `paul.${Date.now()}@x.fr`, password: 'court' });
+        const res = await call('POST', '/auth/signup', { organizationName: 'Autre', name: 'Paul', email: `paul.${Date.now()}@x.fr`, password: 'court', acceptTerms: true });
         expect(res.status).toBe(400);
     });
 
@@ -160,5 +160,35 @@ describe('Paramètres de l’entreprise', () => {
         const rotated = (await call('POST', '/organization/inbound-token')).body.inboundToken;
         expect(rotated).not.toBe(inboundToken);
         expect((await call('POST', `/inbound/email?token=${encodeURIComponent(inboundToken)}`, email, { token: null })).status).toBe(403);
+    });
+});
+
+describe('Données personnelles (RGPD)', () => {
+    it('l’inscription exige l’acceptation des conditions', async () => {
+        const res = await call('POST', '/auth/signup', { organizationName: 'Sans accord', name: 'Paul', email: `paul.${Date.now()}@x.fr`, password: 'un-mot-de-passe-solide' }, { token: null });
+        expect(res.status).toBe(400);
+    });
+
+    it('exporte toutes les données de l’entreprise, sans secret', async () => {
+        const res = await call('GET', '/organization/export', undefined, { token: other });
+        expect(res.status).toBe(200);
+        expect(res.body.organization.name).toBe('Clim Express');
+        expect(res.body.organization.termsAcceptedAt).toBeTruthy();
+        expect(res.body.clients.map((c: { name: string }) => c.name)).toContain('Brasserie du Port');
+        const raw = JSON.stringify(res.body);
+        expect(raw).not.toContain('passwordHash');
+        expect(raw).not.toContain('inboundToken');
+        expect(raw).not.toContain('Restaurant Le Parisien');
+    });
+
+    it('supprime définitivement l’entreprise après double confirmation, sans toucher aux autres', async () => {
+        const email = (await call('GET', '/auth/me', undefined, { token: other })).body.email;
+        expect((await call('DELETE', '/organization', { confirmName: 'Autre nom', password: 'un-mot-de-passe-solide' }, { token: other })).status).toBe(400);
+        expect((await call('DELETE', '/organization', { confirmName: 'Clim Express', password: 'faux-mot-de-passe' }, { token: other })).status).toBe(400);
+        expect((await call('DELETE', '/organization', { confirmName: 'Clim Express', password: 'un-mot-de-passe-solide' }, { token: other })).status).toBe(204);
+
+        expect((await call('GET', '/auth/me', undefined, { token: other })).status).toBe(401);
+        expect((await call('POST', '/auth/login', { email, password: 'un-mot-de-passe-solide' }, { token: null })).status).toBe(401);
+        expect((await call('GET', `/clients/${foreign.client}`, undefined, { token: demo })).status).toBe(200);
     });
 });

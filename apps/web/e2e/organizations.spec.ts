@@ -13,6 +13,7 @@ test('nouvelle entreprise : inscription, paramètres, espace isolé et réceptio
     await page.getByLabel('Email professionnel').fill(email);
     await page.getByLabel('Mot de passe (8 caractères minimum)').fill('un-mot-de-passe-solide');
     await page.getByLabel('Confirmation du mot de passe').fill('un-mot-de-passe-solide');
+    await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Créer mon espace' }).click();
     await page.waitForURL(/\/parametres/);
     await expect(page.getByText('Bienvenue sur Fluxia')).toBeVisible();
@@ -51,4 +52,16 @@ test('nouvelle entreprise : inscription, paramètres, espace isolé et réceptio
     await expect(demo.getByText('climatisation en panne').first()).toBeVisible();
     await expect(demo.getByText('VMC très bruyante')).toHaveCount(0);
     await demoContext.close();
+
+    // Export RGPD puis suppression définitive de l'entreprise
+    await page.goto('/parametres');
+    const download = await page.request.get('/export/donnees');
+    expect(download.status()).toBe(200);
+    expect((await download.json()).organization.name).toBe('Clim Express');
+    await page.getByText('Supprimer l’entreprise').click();
+    await page.getByLabel('Nom de l’entreprise, pour confirmer').fill('Clim Express');
+    await page.getByLabel('Votre mot de passe').fill('un-mot-de-passe-solide');
+    await page.getByRole('button', { name: 'Supprimer définitivement' }).click();
+    await page.waitForURL(/\/login\?supprime=1/);
+    await expect(page.getByText('toutes ses données ont été supprimées')).toBeVisible();
 });

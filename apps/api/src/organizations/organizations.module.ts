@@ -1,16 +1,21 @@
 import { randomBytes } from 'node:crypto';
-import { Body, ConflictException, Controller, Get, Global, HttpCode, Injectable, Module, Patch, Post } from '@nestjs/common';
-import { IsEmail, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { Body, ConflictException, Controller, Delete, Get, Global, Header, HttpCode, Injectable, Module, Patch, Post } from '@nestjs/common';
+import { Equals, IsEmail, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { ActivityService } from '../activity/activity.service.js';
+import type { AuthUser } from '../auth/auth.types.js';
+import { CurrentUser } from '../auth/decorators.js';
 import { hashPassword } from '../auth/password.js';
 import { asOrganization, asSystem, requireOrganizationId } from '../common/tenant.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { DeleteOrganizationDto, PrivacyService } from './privacy.service.js';
 
 export class SignupDto {
     @IsString() @MinLength(2) @MaxLength(120) organizationName: string;
     @IsString() @MinLength(2) @MaxLength(120) name: string;
     @IsEmail() email: string;
     @IsString() @MinLength(8) @MaxLength(200) password: string;
+    /** Conditions d'utilisation et politique de confidentialité acceptées */
+    @Equals(true, { message: "Acceptez les conditions d'utilisation et la politique de confidentialité" }) acceptTerms: boolean;
 }
 
 export class UpdateOrganizationDto {
@@ -82,7 +87,7 @@ export class OrganizationService {
             // Tout ou rien : pas d'entreprise sans son compte responsable
             return await this.prisma.$transaction(async (tx) => {
                 const organization = await tx.organization.create({
-                    data: { name: dto.organizationName.trim(), email, inboundToken: newInboundToken() },
+                    data: { name: dto.organizationName.trim(), email, inboundToken: newInboundToken(), termsAcceptedAt: new Date() },
                 });
                 return asOrganization(organization.id, async () => {
                     const user = await tx.user.create({ data: { email, name: dto.name.trim(), role: 'MANAGER', passwordHash } });
@@ -101,7 +106,10 @@ export class OrganizationService {
 
 @Controller('organization')
 class OrganizationController {
-    constructor(private readonly organizations: OrganizationService) {}
+    constructor(
+        private readonly organizations: OrganizationService,
+        private readonly privacy: PrivacyService,
+    ) {}
 
     @Get()
     get() {
@@ -118,12 +126,27 @@ class OrganizationController {
     rotate() {
         return this.organizations.rotateInboundToken();
     }
+
+    /** Portabilité (RGPD) : export complet des données de l'entreprise. */
+    @Get('export')
+    @Header('content-disposition', 'attachment; filename="fluxia-export.json"')
+    @Header('cache-control', 'no-store')
+    export() {
+        return this.privacy.export();
+    }
+
+    /** Effacement (RGPD) : suppression définitive de l'entreprise et de toutes ses données. */
+    @Delete()
+    @HttpCode(204)
+    async remove(@CurrentUser() user: AuthUser, @Body() dto: DeleteOrganizationDto) {
+        await this.privacy.deleteOrganization(user.id, dto);
+    }
 }
 
 @Global()
 @Module({
     controllers: [OrganizationController],
-    providers: [OrganizationService],
+    providers: [OrganizationService, PrivacyService],
     exports: [OrganizationService],
 })
 export class OrganizationsModule {}

@@ -1,5 +1,8 @@
 import { headers } from 'next/headers';
+import Link from 'next/link';
 import { rotateInboundToken, updateOrganization } from '@/app/actions';
+import { deleteOrganization } from '@/app/auth-actions';
+import { PasswordForm } from '@/features/account/PasswordForm';
 import { Card, Notice, PageHeader } from '@/components/ui';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { ActionForm } from '@/components/ui/ActionForm';
@@ -98,6 +101,36 @@ export default async function SettingsPage({ searchParams }: PageProps<'/paramet
                         Générer une nouvelle adresse
                     </ActionButton>
                 </div>
+            </Card>
+
+            <Card className="mt" title="Données et confidentialité">
+                <p className="muted">
+                    Téléchargez à tout moment l’ensemble des données de votre entreprise dans un format réutilisable (JSON) : clients, interventions,
+                    rapports, devis, factures, historique. Voir la <Link href="/confidentialite">politique de confidentialité</Link>.
+                </p>
+                <a className="btn light" href="/export/donnees">
+                    Exporter toutes les données
+                </a>
+
+                <details className="mt">
+                    <summary className="strong">Supprimer l’entreprise</summary>
+                    <Notice tone="danger">
+                        Suppression définitive et immédiate de l’entreprise, de tous les comptes, de toutes les données et de tous les fichiers. Exportez
+                        d’abord vos données : vos factures doivent être conservées 10 ans (obligation comptable).
+                    </Notice>
+                    <PasswordForm action={deleteOrganization} submitLabel="Supprimer définitivement">
+                        <div className="form-row">
+                            <label>
+                                Nom de l’entreprise, pour confirmer
+                                <input name="confirmName" className="input" required placeholder={organization.name} autoComplete="off" />
+                            </label>
+                            <label>
+                                Votre mot de passe
+                                <input name="password" type="password" className="input" required autoComplete="current-password" />
+                            </label>
+                        </div>
+                    </PasswordForm>
+                </details>
             </Card>
         </>
     );

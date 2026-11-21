@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useActionState } from 'react';
 import { signup } from '@/app/auth-actions';
 
@@ -28,6 +29,13 @@ export function SignupForm() {
             <label>
                 Confirmation du mot de passe
                 <input name="confirm" type="password" className="input" required minLength={8} autoComplete="new-password" />
+            </label>
+            <label className="row-flex small">
+                <input name="acceptTerms" type="checkbox" required />
+                <span>
+                    J’accepte les <Link href="/conditions" target="_blank">conditions d’utilisation</Link> et la{' '}
+                    <Link href="/confidentialite" target="_blank">politique de confidentialité</Link>.
+                </span>
             </label>
             {state?.error && (
                 <div className="form-error" role="alert">

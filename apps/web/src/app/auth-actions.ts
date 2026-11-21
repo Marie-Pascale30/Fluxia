@@ -60,7 +60,7 @@ export async function signup(_: SignupState | null, form: FormData): Promise<Sig
     if (password !== String(form.get('confirm') ?? '')) return { error: 'Les deux mots de passe ne correspondent pas.', values };
 
     try {
-        await openSession(await api.auth.signup({ ...values, password }));
+        await openSession(await api.auth.signup({ ...values, password, acceptTerms: form.get('acceptTerms') === 'on' }));
     } catch (error) {
         if (error instanceof ApiError) {
             return { error: error.status === 429 ? 'Trop de tentatives, réessayez dans une minute.' : error.message, values };
@@ -111,6 +111,17 @@ export async function changePassword(_: PasswordState | null, form: FormData): P
     } catch (error) {
         return { error: error instanceof ApiError ? error.message : 'Modification impossible pour le moment.' };
     }
+}
+
+/** Suppression définitive de l'entreprise (RGPD) : la session est fermée ensuite. */
+export async function deleteOrganization(_: PasswordState | null, form: FormData): Promise<PasswordState> {
+    try {
+        await api.organization.remove(String(form.get('confirmName') ?? ''), String(form.get('password') ?? ''));
+    } catch (error) {
+        return { error: error instanceof ApiError ? error.message : 'Suppression impossible pour le moment.' };
+    }
+    (await cookies()).delete(SESSION_COOKIE);
+    redirect('/login?supprime=1');
 }
 
 export async function logout() {

@@ -80,7 +80,7 @@ async function request<T>(path: string, { anonymous, ...init }: RequestOptions =
     // Session absente ou expirée : retour à l'écran de connexion
     if (response.status === 401 && !anonymous) redirect('/login?expired=1');
 
-    const body = await response.json().catch(() => null);
+    const body = response.status === 204 ? null : await response.json().catch(() => null);
     if (!response.ok) {
         const raw = body?.message ?? response.statusText;
         throw new ApiError(Array.isArray(raw) ? raw.join(' · ') : String(raw), response.status);
@@ -118,7 +118,7 @@ export const api = {
     auth: {
         login: (email: string, password: string) =>
             request<LoginResult>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }), anonymous: true }),
-        signup: (data: { organizationName: string; name: string; email: string; password: string }) =>
+        signup: (data: { organizationName: string; name: string; email: string; password: string; acceptTerms: boolean }) =>
             request<LoginResult>('/auth/signup', { method: 'POST', body: JSON.stringify(data), anonymous: true }),
         me: () => get<SessionUser>('/auth/me'),
         forgotPassword: (email: string) =>
@@ -132,6 +132,8 @@ export const api = {
         get: () => get<Organization>('/organization'),
         update: (data: Partial<Omit<Organization, 'id' | 'inboundToken'>>) => patch<Organization>('/organization', data),
         rotateInboundToken: () => post<Organization>('/organization/inbound-token'),
+        remove: (confirmName: string, password: string) =>
+            request<null>('/organization', { method: 'DELETE', body: JSON.stringify({ confirmName, password }) }),
     },
 
     dashboard: () => get<Dashboard>('/dashboard'),

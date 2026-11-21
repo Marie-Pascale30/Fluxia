@@ -148,9 +148,11 @@ enum MessageStatus {
 /// Entreprise cliente de Fluxia. Toutes les données métier lui sont rattachées
 /// (organizationId) et filtrées automatiquement (extension Prisma, cf. common/tenant.ts).
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
+  id              String    @id @default(cuid())
+  name            String
+  createdAt       DateTime  @default(now())
+  /// Acceptation des conditions d'utilisation et de la politique de confidentialité (inscription)
+  termsAcceptedAt DateTime?
 
   // Coordonnées et mentions affichées sur les documents et les emails
   address          String @default("")
