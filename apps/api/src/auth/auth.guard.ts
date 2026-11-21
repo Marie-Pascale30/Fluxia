@@ -49,6 +49,7 @@ export class AuthGuard implements CanActivate {
             this.prisma.user.findUnique({ where: { id: payload.sub }, include: { organization: { select: { name: true } } } }),
         );
         if (!user?.active) throw new UnauthorizedException('Compte désactivé');
+        if (payload.sv !== user.sessionVersion) throw new UnauthorizedException('Mot de passe modifié, reconnectez-vous');
 
         const authUser: AuthUser = {
             id: user.id,

@@ -70,6 +70,49 @@ export async function signup(_: SignupState | null, form: FormData): Promise<Sig
     redirect('/parametres?bienvenue=1');
 }
 
+export interface PasswordState {
+    error?: string;
+    message?: string;
+}
+
+/** Demande de lien de réinitialisation (même réponse que le compte existe ou non). */
+export async function forgotPassword(_: PasswordState | null, form: FormData): Promise<PasswordState> {
+    try {
+        const { message } = await api.auth.forgotPassword(String(form.get('email') ?? '').trim());
+        return { message };
+    } catch (error) {
+        if (error instanceof ApiError && error.status === 429) return { error: 'Trop de tentatives, réessayez dans une minute.' };
+        return { error: error instanceof ApiError ? error.message : 'Envoi impossible pour le moment.' };
+    }
+}
+
+/** Nouveau mot de passe depuis le lien reçu : la session s'ouvre directement. */
+export async function resetPassword(token: string, _: PasswordState | null, form: FormData): Promise<PasswordState> {
+    const password = String(form.get('password') ?? '');
+    if (password !== String(form.get('confirm') ?? '')) return { error: 'Les deux mots de passe ne correspondent pas.' };
+    let user: LoginResult['user'];
+    try {
+        const session = await api.auth.resetPassword(token, password);
+        await openSession(session);
+        user = session.user;
+    } catch (error) {
+        return { error: error instanceof ApiError ? error.message : 'Réinitialisation impossible pour le moment.' };
+    }
+    redirect(homeFor(user));
+}
+
+/** Changement de mot de passe de l'utilisateur connecté ; ses autres sessions sont fermées. */
+export async function changePassword(_: PasswordState | null, form: FormData): Promise<PasswordState> {
+    const newPassword = String(form.get('newPassword') ?? '');
+    if (newPassword !== String(form.get('confirm') ?? '')) return { error: 'Les deux mots de passe ne correspondent pas.' };
+    try {
+        await openSession(await api.auth.changePassword(String(form.get('currentPassword') ?? ''), newPassword));
+        return { message: 'Mot de passe modifié. Vos autres sessions ont été fermées.' };
+    } catch (error) {
+        return { error: error instanceof ApiError ? error.message : 'Modification impossible pour le moment.' };
+    }
+}
+
 export async function logout() {
     (await cookies()).delete(SESSION_COOKIE);
     redirect('/login');

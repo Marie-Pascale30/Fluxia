@@ -19,6 +19,7 @@ const LABELS: Record<string, string> = {
     clients: 'Clients',
     catalogue: 'Catalogue',
     parametres: 'Paramètres',
+    compte: 'Mon compte',
     envois: 'Envois',
 };
 
@@ -45,10 +46,10 @@ export function Topbar({ user }: { user: { name: string; initials: string; role:
                     })}
             </div>
             <div className="row-flex">
-                <span className="muted">
+                <Link href="/compte" className="muted" title="Mon compte">
                     {user.name}
                     {technician && ' · technicien'}
-                </span>
+                </Link>
                 <div className="avatar">{user.initials}</div>
                 <form action={logout} onSubmit={clearOfflineCache}>
                     <button className="btn light sm" title="Se déconnecter">

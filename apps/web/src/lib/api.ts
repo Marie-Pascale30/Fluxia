@@ -121,6 +121,11 @@ export const api = {
         signup: (data: { organizationName: string; name: string; email: string; password: string }) =>
             request<LoginResult>('/auth/signup', { method: 'POST', body: JSON.stringify(data), anonymous: true }),
         me: () => get<SessionUser>('/auth/me'),
+        forgotPassword: (email: string) =>
+            request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }), anonymous: true }),
+        resetPassword: (token: string, password: string) =>
+            request<LoginResult>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }), anonymous: true }),
+        changePassword: (currentPassword: string, newPassword: string) => post<LoginResult>('/auth/password', { currentPassword, newPassword }),
     },
 
     organization: {

@@ -148,7 +148,7 @@ export class TechnicianAdminService {
         const user = await this.prisma.user.findUnique({ where: { technicianId: id } });
         if (!user) throw new NotFoundException("Ce technicien n'a pas de compte");
         const password = temporaryPassword();
-        await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password) } });
+        await this.prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password), sessionVersion: { increment: 1 } } });
         await this.activity.log({ actor: 'USER', type: 'PASSWORD_RESET', message: `Mot de passe de ${user.name} réinitialisé`, entityType: 'TECHNICIAN', entityId: id });
         return { temporaryPassword: password };
     }

@@ -21,6 +21,7 @@ import { AuthGuard, RequestContextInterceptor } from './auth.guard.js';
 import type { AuthUser, JwtPayload } from './auth.types.js';
 import { CurrentUser, Public, Roles } from './decorators.js';
 import { hashPassword, verifyPassword } from './password.js';
+import { ChangePasswordDto, ForgotPasswordDto, PasswordResetService, ResetPasswordDto } from './password-reset.service.js';
 
 class LoginDto {
     @IsEmail() email: string;
@@ -58,8 +59,16 @@ export class AuthService {
         return this.session({ ...user, organizationName: dto.organizationName.trim() });
     }
 
-    private async session(user: Omit<AuthUser, 'organizationName'> & { organizationName: string }) {
-        const payload: JwtPayload = { sub: user.id, role: user.role, tid: user.technicianId, name: user.name, org: user.organizationId };
+    /** Nouvelle session (après connexion, inscription ou changement de mot de passe). */
+    async session(user: Omit<AuthUser, 'organizationName'> & { organizationName: string; sessionVersion: number }) {
+        const payload: JwtPayload = {
+            sub: user.id,
+            role: user.role,
+            tid: user.technicianId,
+            name: user.name,
+            org: user.organizationId,
+            sv: user.sessionVersion,
+        };
         const authUser: AuthUser = {
             id: user.id,
             name: user.name,
@@ -75,7 +84,10 @@ export class AuthService {
 
 @Controller('auth')
 class AuthController {
-    constructor(private readonly auth: AuthService) {}
+    constructor(
+        private readonly auth: AuthService,
+        private readonly passwords: PasswordResetService,
+    ) {}
 
     @Public()
     @Post('login')
@@ -99,6 +111,37 @@ class AuthController {
     me(@CurrentUser() user: AuthUser) {
         return user;
     }
+
+    /** Mot de passe oublié : toujours la même réponse (ne révèle pas si le compte existe). */
+    @Public()
+    @Post('forgot-password')
+    @HttpCode(200)
+    @UseGuards(ThrottlerGuard)
+    @Throttle({ default: { limit: Number(process.env.LOGIN_RATE_LIMIT ?? 10), ttl: 60_000 } })
+    async forgot(@Body() dto: ForgotPasswordDto) {
+        await this.passwords.request(dto.email);
+        return { message: 'Si un compte existe pour cette adresse, un lien de réinitialisation vient de lui être envoyé.' };
+    }
+
+    /** Nouveau mot de passe depuis le lien reçu par email ; ouvre directement la session. */
+    @Public()
+    @Post('reset-password')
+    @HttpCode(200)
+    @UseGuards(ThrottlerGuard)
+    @Throttle({ default: { limit: Number(process.env.LOGIN_RATE_LIMIT ?? 10), ttl: 60_000 } })
+    async reset(@Body() dto: ResetPasswordDto) {
+        const user = await this.passwords.reset(dto.token, dto.password);
+        return this.auth.session({ ...user, organizationName: user.organization.name });
+    }
+
+    /** Changement de mot de passe : les autres sessions sont fermées, une nouvelle est renvoyée. */
+    @Post('password')
+    @HttpCode(200)
+    @Roles('MANAGER', 'TECHNICIAN')
+    async change(@CurrentUser() current: AuthUser, @Body() dto: ChangePasswordDto) {
+        const user = await this.passwords.change(current.id, dto);
+        return this.auth.session({ ...user, organizationName: user.organization.name });
+    }
 }
 
 @Module({
@@ -112,6 +155,7 @@ class AuthController {
     controllers: [AuthController],
     providers: [
         AuthService,
+        PasswordResetService,
         { provide: APP_GUARD, useClass: AuthGuard },
         { provide: APP_INTERCEPTOR, useClass: RequestContextInterceptor },
     ],

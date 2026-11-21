@@ -17,6 +17,8 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
                 {expired && <Notice tone="warning">Votre session a expiré, reconnectez-vous.</Notice>}
                 <LoginForm next={typeof next === 'string' ? next : undefined} />
                 <p className="muted small mt">
+                    <Link href="/mot-de-passe-oublie">Mot de passe oublié ?</Link>
+                    <br />
                     Nouvelle entreprise ? <Link href="/inscription">Créer un compte</Link>
                 </p>
                 {process.env.NODE_ENV !== 'production' && (

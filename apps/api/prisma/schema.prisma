@@ -197,6 +197,12 @@ model User {
   createdAt      DateTime  @default(now())
   lastLoginAt    DateTime?
 
+  /// Incrémenté à chaque changement de mot de passe : invalide les sessions ouvertes
+  sessionVersion      Int       @default(1)
+  /// Réinitialisation du mot de passe : empreinte SHA-256 du jeton envoyé par email (usage unique)
+  resetTokenHash      String?   @unique
+  resetTokenExpiresAt DateTime?
+
   /// Compte d'un technicien : accès limité à ses propres missions
   technicianId String?     @unique
   technician   Technician? @relation(fields: [technicianId], references: [id])

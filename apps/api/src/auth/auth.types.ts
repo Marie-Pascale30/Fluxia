@@ -20,6 +20,8 @@ export interface JwtPayload {
     tid: string | null;
     name: string;
     org: string;
+    /** Version de session : un changement de mot de passe invalide les jetons antérieurs */
+    sv: number;
 }
 
 /**

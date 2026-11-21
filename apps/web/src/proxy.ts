@@ -5,8 +5,8 @@ import { homeFor, readClaims, SESSION_COOKIE } from '@/lib/session';
 // technicien → uniquement sa vue terrain et ses rapports.
 // L'autorisation réelle reste appliquée par l'API à chaque requête.
 
-const PUBLIC_PATHS = ['/login', '/inscription', '/portail', '/api/inbound'];
-const TECHNICIAN_PATHS = (tid: string) => [`/techniciens/${tid}`, '/rapports/', '/files/', '/pdf/rapport/'];
+const PUBLIC_PATHS = ['/login', '/inscription', '/mot-de-passe-oublie', '/mot-de-passe', '/portail', '/api/inbound'];
+const TECHNICIAN_PATHS = (tid: string) => [`/techniciens/${tid}`, '/rapports/', '/files/', '/pdf/rapport/', '/compte'];
 
 export function proxy(request: NextRequest) {
     const { pathname, search } = request.nextUrl;
