@@ -61,6 +61,12 @@ Comptes de démonstration (mot de passe `fluxia-demo`) :
    avec avoirs (`A-AAAA-NNNN`), suivi des paiements et des retards, et export CSV du journal des ventes (411 / 706 / 4457).
 8. **Envois** : emails et SMS passent par une file d'envoi (outbox) qui gère les relances, la trace des envois et la
    reprise manuelle.
+9. **Facture électronique** : chaque facture émise est au format Factur-X (PDF/A-3 portant le XML EN 16931), avec le
+   SIRET et le n° de TVA de l'entreprise et des clients professionnels. Le XML seul est téléchargeable.
+10. **Abonnement** : essai gratuit à l'inscription, puis abonnement Stripe (Checkout et portail client, webhook signé).
+    Sans abonnement actif, l'espace reste consultable en lecture seule.
+11. **Comptes et données** : mot de passe oublié par email, changement de mot de passe (qui ferme les autres sessions),
+    export complet des données de l'entreprise et suppression définitive (RGPD), pages légales modèles.
 
 ## Configuration
 
@@ -76,6 +82,8 @@ tout fonctionne en local : messages simulés et tracés, moteur IA heuristique, 
 | Transcription audio | `TRANSCRIPTION_URL`, `TRANSCRIPTION_API_KEY`, `TRANSCRIPTION_MODEL` (API compatible OpenAI) |
 | Liens du portail | `PUBLIC_WEB_URL` |
 | Sécurité | `JWT_SECRET` (obligatoire en production), `LOGIN_RATE_LIMIT`, `SIGNUP_RATE_LIMIT` |
+| Abonnements | `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`, `TRIAL_DAYS` |
+| Pages légales (web) | `LEGAL_OPERATOR_NAME`, `LEGAL_CONTACT_EMAIL`, `LEGAL_HOST`… (voir [apps/web/.env.example](apps/web/.env.example)) |
 
 Coordonnées, mentions légales, signature des emails, délai de paiement et comptes comptables se règlent par entreprise
 dans l'application (page Paramètres), et non plus par variables d'environnement.
@@ -104,12 +112,13 @@ packages/shared/src  domain.ts (vocabulaire), contract.ts (schémas Zod des rép
 apps/api/src
   common/        cloisonnement par entreprise (tenant.ts), dates (fuseau), machines à états, numérotation, secrets, géo
   auth/          JWT, garde globale, rôles, contexte de requête, inscription
-  organizations/ fiche et paramètres de l'entreprise
+  organizations/ fiche et paramètres de l'entreprise, export et suppression (RGPD)
+  billing/       abonnement Stripe, règles d'accès (lecture seule sans abonnement)
   ai/            AiProvider : heuristic.provider, claude.provider, ai.service (sélection + repli)
   planning/      scheduler.ts (fonctions pures, testées) + planning.service
   requests/      Inbox : ingestion, analyse, création client, réponses
   interventions/ cycle de vie, affectation, mission, compte rendu, signature
-  reports/ quotes/ invoices/   documents, règle de facturation, comptabilité
+  reports/ quotes/ invoices/   documents, règle de facturation, comptabilité, Factur-X
   messaging/     outbox, transports SMTP / Twilio, webhook entrant, relève IMAP
   attachments/ storage/ pdf/   photos, audio, signatures, PDF
   portal/ maintenance/         portail client, entretien préventif
@@ -145,16 +154,18 @@ PW_CHANNEL=msedge npm run test:e2e -w web                         # ou chrome ; 
 La CI GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) exécute les vérifications, les tests,
 les tests navigateur et la construction des images Docker.
 
-## Déploiement (Docker)
+## Déploiement
+
+Le guide pas à pas est dans [docs/deploiement.md](docs/deploiement.md) : serveur, DNS, emails (SPF/DKIM),
+Stripe, facture électronique, pages légales, sauvegardes et restauration, mises à jour.
 
 ```bash
-cp .env.prod.example .env.prod      # secrets, URL publique, connecteurs
+cp .env.prod.example .env.prod      # domaine, secrets, connecteurs
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
-docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm seed   # données de démo (facultatif)
 ```
 
-L'API applique les migrations à son démarrage et conserve les fichiers déposés dans le volume `uploads`.
-Le web (sortie Next « standalone ») est exposé sur `WEB_PORT` (3000 par défaut). Placez un proxy HTTPS devant.
+La pile de production comprend Caddy (HTTPS automatique Let's Encrypt, en-têtes de sécurité), le web, l'API (qui applique
+les migrations au démarrage), PostgreSQL et un service de sauvegarde quotidienne de la base et des fichiers, avec rotation.
 
 > Sous Windows, si le dépôt est synchronisé par OneDrive, Docker peut refuser de lire certains fichiers
 > (« invalid file request ») : construisez depuis une copie du dépôt hors OneDrive, par exemple

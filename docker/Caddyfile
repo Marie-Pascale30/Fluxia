@@ -1,0 +1,22 @@
+# Proxy HTTPS : certificat Let's Encrypt automatique pour {$DOMAIN}.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Webhook Stripe : directement vers l'API (corps brut intact pour la vérification de signature)
+	handle /api/billing/webhook {
+		reverse_proxy api:4000
+	}
+
+	# Tout le reste : application web (qui relaie elle-même vers l'API)
+	handle {
+		reverse_proxy web:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		-Server
+	}
+}

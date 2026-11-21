@@ -14,7 +14,7 @@ test('mot de passe oublié : lien reçu par email, nouveau mot de passe, connexi
     await page.getByRole('link', { name: 'Mot de passe oublié ?' }).click();
     await page.getByLabel('Email').fill(email);
     await page.getByRole('button', { name: 'Recevoir le lien' }).click();
-    await expect(page.getByRole('status')).toContainText('un lien de réinitialisation');
+    await expect(page.locator('.notice.success')).toContainText('un lien de réinitialisation');
 
     const { messages } = await (await request.get(`${API}/messages`, { headers: auth })).json();
     const body: string = messages.find((m: { recipient: string }) => m.recipient === email).body;
@@ -32,5 +32,5 @@ test('mot de passe oublié : lien reçu par email, nouveau mot de passe, connexi
     await page.getByLabel('Nouveau mot de passe (8 caractères minimum)').fill('encore-un-secret');
     await page.getByLabel('Confirmation').fill('encore-un-secret');
     await page.getByRole('button', { name: 'Enregistrer et me connecter' }).click();
-    await expect(page.getByRole('alert')).toContainText('Lien invalide ou expiré');
+    await expect(page.locator('.form-error')).toContainText('Lien invalide ou expiré');
 });
