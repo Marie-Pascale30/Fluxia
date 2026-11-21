@@ -137,6 +137,14 @@ enum AttachmentKind {
   AUDIO
 }
 
+/// Abonnement de l'entreprise à Fluxia (synchronisé depuis Stripe)
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
 enum MessageStatus {
   PENDING
   SENT
@@ -155,17 +163,27 @@ model Organization {
   termsAcceptedAt DateTime?
 
   // Coordonnées et mentions affichées sur les documents et les emails
-  address          String @default("")
-  phone            String @default("")
-  email            String @default("")
+  address              String             @default("")
+  phone                String             @default("")
+  email                String             @default("")
   /// Mentions légales : forme juridique, SIRET, n° de TVA…
-  legal            String @default("")
-  signature        String @default("L'équipe maintenance")
-  paymentTermsDays Int    @default(30)
-  accountRevenue   String @default("706000")
-  accountVat       String @default("445710")
+  legal                String             @default("")
+  signature            String             @default("L'équipe maintenance")
+  paymentTermsDays     Int                @default(30)
+  accountRevenue       String             @default("706000")
+  accountVat           String             @default("445710")
+  // Abonnement : sans abonnement utilisable, l'espace passe en lecture seule.
+  // Défaut ACTIVE pour les entreprises antérieures à la facturation ; l'inscription démarre un essai.
+  subscriptionStatus   SubscriptionStatus @default(ACTIVE)
+  trialEndsAt          DateTime?
+  currentPeriodEnd     DateTime?
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  /// Date du dernier événement Stripe appliqué (les événements plus anciens, reçus en retard, sont ignorés)
+  stripeEventAt        DateTime?
+
   /// Jeton secret du webhook d'emails entrants (POST /api/inbound/email?token=…)
-  inboundToken     String @unique
+  inboundToken String @unique
 
   users         User[]
   clients       Client[]

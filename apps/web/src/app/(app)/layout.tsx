@@ -5,12 +5,15 @@ import { api } from '@/lib/api';
 import { getCurrentUser } from '@/lib/current-user';
 import { initials, providerLabel } from '@/lib/format';
 import type { SessionUser } from '@/lib/session';
+import type { Billing } from '@/lib/types';
+import { SubscriptionBanner } from '@/components/layout/SubscriptionBanner';
 
-async function loadNav(user: SessionUser): Promise<{ counters: NavCounters | null; aiProvider: string | null }> {
-    if (user.role !== 'MANAGER') return { counters: null, aiProvider: null };
+async function loadNav(user: SessionUser): Promise<{ counters: NavCounters | null; aiProvider: string | null; billing: Billing | null }> {
+    if (user.role !== 'MANAGER') return { counters: null, aiProvider: null, billing: null };
     try {
-        const { counters, aiProvider } = await api.dashboard();
+        const [{ counters, aiProvider }, billing] = await Promise.all([api.dashboard(), api.billing.status()]);
         return {
+            billing,
             aiProvider: providerLabel(aiProvider),
             counters: {
                 inbox: counters.requestsPending,
@@ -23,7 +26,7 @@ async function loadNav(user: SessionUser): Promise<{ counters: NavCounters | nul
             },
         };
     } catch {
-        return { counters: null, aiProvider: null };
+        return { counters: null, aiProvider: null, billing: null };
     }
 }
 
@@ -40,7 +43,10 @@ export default async function AppLayout({ children }: LayoutProps<'/'>) {
             <Sidebar counters={nav.counters} aiProvider={nav.aiProvider} user={user} />
             <div className="main">
                 <Topbar user={{ name: user.name, initials: initials(first, last), role: user.role }} />
-                <main className="content">{children}</main>
+                <main className="content">
+                    {nav.billing && <SubscriptionBanner billing={nav.billing} />}
+                    {children}
+                </main>
             </div>
         </>
     );

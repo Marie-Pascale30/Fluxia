@@ -38,6 +38,7 @@ import type {
     TechnicianDetail,
     TechnicianWithLoad,
     Organization,
+    Billing,
 } from './types';
 
 const API_URL = process.env.API_URL ?? 'http://localhost:4000/api';
@@ -126,6 +127,12 @@ export const api = {
         resetPassword: (token: string, password: string) =>
             request<LoginResult>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }), anonymous: true }),
         changePassword: (currentPassword: string, newPassword: string) => post<LoginResult>('/auth/password', { currentPassword, newPassword }),
+    },
+
+    billing: {
+        status: () => get<Billing>('/billing'),
+        checkout: () => post<{ url: string }>('/billing/checkout'),
+        portal: () => post<{ url: string }>('/billing/portal'),
     },
 
     organization: {

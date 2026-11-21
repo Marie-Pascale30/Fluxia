@@ -4,7 +4,8 @@ import { AppModule } from './app.module.js';
 import { configureApp } from './app.setup.js';
 
 async function bootstrap() {
-    const app = configureApp(await NestFactory.create(AppModule));
+    // Corps brut conservé : vérification de la signature des webhooks Stripe
+    const app = configureApp(await NestFactory.create(AppModule, { rawBody: true }));
     const port = Number(process.env.PORT ?? 4000);
     await app.listen(port);
     console.log(`API Fluxia prête sur http://localhost:${port}/api`);

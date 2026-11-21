@@ -20,6 +20,7 @@ const LABELS: Record<string, string> = {
     catalogue: 'Catalogue',
     parametres: 'Paramètres',
     compte: 'Mon compte',
+    abonnement: 'Abonnement',
     envois: 'Envois',
 };
 

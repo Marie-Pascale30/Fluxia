@@ -6,6 +6,7 @@ import { AttachmentsModule } from './attachments/attachments.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { Public } from './auth/decorators.js';
 import { AiModule } from './ai/ai.module.js';
+import { BillingModule } from './billing/billing.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { ClientsModule } from './clients/clients.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
@@ -63,6 +64,7 @@ class HealthController {
         PortalModule,
         MaintenanceModule,
         InvoicesModule,
+        BillingModule,
     ],
     controllers: [HealthController],
 })

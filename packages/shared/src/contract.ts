@@ -460,6 +460,17 @@ export const Organization = z.object({
     inboundToken: z.string(),
 });
 
+/** Abonnement de l'entreprise (GET /billing). */
+export const Billing = z.object({
+    status: z.enum(['TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELED']),
+    trialEndsAt: date.nullable(),
+    trialDaysLeft: z.number().int(),
+    currentPeriodEnd: date.nullable(),
+    canWrite: z.boolean(),
+    hasCustomer: z.boolean(),
+    configured: z.boolean(),
+});
+
 /** Utilisateur connecté (GET /auth/me). */
 export const SessionUser = z.object({
     id,

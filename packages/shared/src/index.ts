@@ -43,6 +43,7 @@ export type Attachment = z.infer<typeof C.Attachment>;
 export type Capabilities = z.infer<typeof C.Capabilities>;
 export type PortalSummary = z.infer<typeof C.PortalSummary>;
 export type Organization = z.infer<typeof C.Organization>;
+export type Billing = z.infer<typeof C.Billing>;
 export type SessionUser = z.infer<typeof C.SessionUser>;
 export type UpcomingMaintenance = z.infer<typeof C.UpcomingMaintenance>;
 export type MaintenanceRun = z.infer<typeof C.MaintenanceRun>;

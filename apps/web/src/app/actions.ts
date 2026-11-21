@@ -577,3 +577,25 @@ export async function rotateInboundToken(): Promise<ActionResult> {
         return 'Nouvelle adresse de réception générée : mettez à jour votre fournisseur d’emails';
     });
 }
+
+// ─── Abonnement ─────────────────────────────────────────────────
+
+/** Ouvre une page Stripe (paiement ou gestion) ; en cas d'erreur, message affiché en toast. */
+async function toStripe(open: () => Promise<{ url: string }>): Promise<ActionResult> {
+    let url: string;
+    try {
+        url = (await open()).url;
+    } catch (error) {
+        unstable_rethrow(error);
+        return { ok: false, message: error instanceof ApiError ? error.message : 'Paiement momentanément indisponible' };
+    }
+    redirect(url);
+}
+
+export async function startCheckout(): Promise<ActionResult> {
+    return toStripe(api.billing.checkout);
+}
+
+export async function openBillingPortal(): Promise<ActionResult> {
+    return toStripe(api.billing.portal);
+}

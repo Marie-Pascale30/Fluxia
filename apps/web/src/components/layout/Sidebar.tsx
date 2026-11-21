@@ -39,6 +39,7 @@ const SECTIONS = [
             { href: '/clients', label: 'Clients', icon: '⌂' },
             { href: '/catalogue', label: 'Catalogue', icon: '☰' },
             { href: '/envois', label: 'Envois', icon: '➤', badge: 'failedMessages' },
+            { href: '/abonnement', label: 'Abonnement', icon: '◈' },
             { href: '/parametres', label: 'Paramètres', icon: '⚙' },
         ],
     },

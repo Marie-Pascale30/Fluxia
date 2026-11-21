@@ -19,7 +19,7 @@ import { OrganizationService, SignupDto } from '../organizations/organizations.m
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthGuard, RequestContextInterceptor } from './auth.guard.js';
 import type { AuthUser, JwtPayload } from './auth.types.js';
-import { CurrentUser, Public, Roles } from './decorators.js';
+import { CurrentUser, Public, Roles, SubscriptionExempt } from './decorators.js';
 import { hashPassword, verifyPassword } from './password.js';
 import { ChangePasswordDto, ForgotPasswordDto, PasswordResetService, ResetPasswordDto } from './password-reset.service.js';
 
@@ -82,6 +82,7 @@ export class AuthService {
     }
 }
 
+@SubscriptionExempt()
 @Controller('auth')
 class AuthController {
     constructor(

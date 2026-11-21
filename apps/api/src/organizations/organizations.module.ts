@@ -3,8 +3,9 @@ import { Body, ConflictException, Controller, Delete, Get, Global, Header, HttpC
 import { Equals, IsEmail, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { ActivityService } from '../activity/activity.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
-import { CurrentUser } from '../auth/decorators.js';
+import { CurrentUser, SubscriptionExempt } from '../auth/decorators.js';
 import { hashPassword } from '../auth/password.js';
+import { TRIAL_DAYS } from '../billing/subscription.js';
 import { asOrganization, asSystem, requireOrganizationId } from '../common/tenant.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DeleteOrganizationDto, PrivacyService } from './privacy.service.js';
@@ -87,7 +88,15 @@ export class OrganizationService {
             // Tout ou rien : pas d'entreprise sans son compte responsable
             return await this.prisma.$transaction(async (tx) => {
                 const organization = await tx.organization.create({
-                    data: { name: dto.organizationName.trim(), email, inboundToken: newInboundToken(), termsAcceptedAt: new Date() },
+                    data: {
+                        name: dto.organizationName.trim(),
+                        email,
+                        inboundToken: newInboundToken(),
+                        termsAcceptedAt: new Date(),
+                        // Essai gratuit, puis abonnement (page Abonnement)
+                        subscriptionStatus: 'TRIALING',
+                        trialEndsAt: new Date(Date.now() + TRIAL_DAYS() * 86_400_000),
+                    },
                 });
                 return asOrganization(organization.id, async () => {
                     const user = await tx.user.create({ data: { email, name: dto.name.trim(), role: 'MANAGER', passwordHash } });
@@ -104,6 +113,8 @@ export class OrganizationService {
     }
 }
 
+// Paramètres, export et suppression restent possibles sans abonnement
+@SubscriptionExempt()
 @Controller('organization')
 class OrganizationController {
     constructor(
