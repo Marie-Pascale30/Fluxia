@@ -104,6 +104,37 @@ dans l'application (page Paramètres), et non plus par variables d'environnement
 - Les montants sont stockés en centimes, et les totaux HT / TVA / TTC sont calculés côté serveur.
 - Un journal d'audit enregistre chaque action, qu'elle vienne de l'IA, d'un responsable, d'un technicien ou d'un client.
 
+## Sécurité et données personnelles
+
+- **Limitation des tentatives** : l'API ne voit que l'adresse IP du serveur web (toutes les requêtes passent par les
+  Server Actions de Next). Plutôt que de faire confiance à un en-tête `X-Forwarded-For` falsifiable, l'API limite **par email**
+  (10 échecs de connexion / 15 min, 3 demandes de réinitialisation / h, 5 inscriptions / h : `LOGIN_EMAIL_RATE_LIMIT`,
+  `RESET_EMAIL_RATE_LIMIT`, `SIGNUP_EMAIL_RATE_LIMIT`) et applique un plafond global élevé par IP (`AUTH_RATE_CEILING`, 300 / min).
+  Les compteurs sont en mémoire : suffisant pour une instance unique, à placer dans Redis au-delà.
+- **Sessions** : la déconnexion révoque le jeton (version de session incrémentée, ce qui ferme aussi les autres sessions de
+  l'utilisateur), comme un changement de mot de passe.
+- **Lien de réinitialisation** : jamais stocké. La boîte d'envoi ne garde qu'une mention neutre ; le jeton est tiré au moment de
+  l'expédition. Ces emails n'apparaissent ni dans « Envois » ni dans l'export.
+- **Portail client** : liens signés valables 90 jours (`PORTAL_LINK_DAYS`), révocables.
+- **Emails entrants** : jeton à transmettre de préférence dans l'en-tête `X-Fluxia-Token` (`?token=` reste accepté pour compatibilité).
+- **En-têtes** : CSP, `frame-ancestors 'none'`, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` (caméra et micro
+  pour la vue terrain) côté web ; `helmet` côté API. La CSP autorise les scripts en ligne (`'unsafe-inline'`) requis par Next sans nonce.
+- **Conservation** : purge quotidienne (et au démarrage) des demandes archivées de plus de 24 mois, des messages envoyés de plus de
+  12 mois et du journal d'activité de plus de 24 mois (`RETENTION_PURGE=false` pour désactiver).
+- **Suppression d'une entreprise** : l'abonnement Stripe est résilié et le client Stripe supprimé ; si l'entreprise a émis des
+  factures (à conserver 10 ans, C. com. L123-22), la suppression exige d'abord le téléchargement de l'export complet.
+- **Journaux** : emails et numéros de téléphone masqués.
+
+## Limites de la démo en ligne
+
+La démo (web sur Vercel, API sur Render en offre gratuite, base Neon en région us-east-2) est un projet de portfolio non commercialisé :
+
+- **Fichiers déposés éphémères** : sans disque persistant (non souscrit), les photos, signatures et enregistrements audio sont
+  stockés sur le disque du conteneur de l'API (`UPLOAD_DIR=/data/storage`) et **perdus à chaque déploiement ou redémarrage**.
+- **Aucun paiement** : Stripe n'est pas configuré (l'abonnement est simulé, le webhook répond 404) ; emails et SMS sont simulés ;
+  l'IA utilise le moteur local (pas d'envoi à Anthropic).
+- **Hébergement aux États-Unis** : voir la politique de confidentialité (`/confidentialite`) pour la liste des prestataires.
+
 ## Architecture
 
 ```
