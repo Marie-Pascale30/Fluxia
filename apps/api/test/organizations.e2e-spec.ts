@@ -179,6 +179,17 @@ describe('Données personnelles (RGPD)', () => {
         expect(raw).not.toContain('passwordHash');
         expect(raw).not.toContain('inboundToken');
         expect(raw).not.toContain('Restaurant Le Parisien');
+        expect(raw).not.toContain('stripeCustomerId');
+        // L'export est tracé : il conditionne la suppression d'une entreprise qui a émis des factures
+        expect((await call('GET', '/organization', undefined, { token: other })).body.dataExportedAt).toBeTruthy();
+    });
+
+    it('refuse de supprimer une entreprise qui a émis des factures sans export préalable', async () => {
+        const invoices = (await call('GET', '/invoices', undefined, { token: demo })).body as { number: string | null }[];
+        if (!invoices.some((i) => i.number)) return;
+        const res = await call('DELETE', '/organization', { confirmName: 'Fluxia Maintenance', password: 'fluxia-demo' }, { token: demo });
+        expect(res.status).toBe(409);
+        expect(res.body.message).toContain('export');
     });
 
     it('supprime définitivement l’entreprise après double confirmation, sans toucher aux autres', async () => {

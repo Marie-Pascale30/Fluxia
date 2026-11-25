@@ -184,6 +184,9 @@ model Organization {
   stripeSubscriptionId String?            @unique
   /// Date du dernier événement Stripe appliqué (les événements plus anciens, reçus en retard, sont ignorés)
   stripeEventAt        DateTime?
+  /// Dernier téléchargement de l'export complet des données (contient les factures, à conserver 10 ans) :
+  /// la suppression de l'entreprise n'est possible qu'après un export postérieur à la dernière facture émise
+  dataExportedAt       DateTime?
 
   /// Jeton secret du webhook d'emails entrants (POST /api/inbound/email?token=…)
   inboundToken String @unique
@@ -655,6 +658,11 @@ model OutboundMessage {
   entityId       String
   /// Pièces jointes générées à l'envoi : [{ kind: "REPORT_PDF" | "QUOTE_PDF", id }]
   attachments    Json           @default("[]")
+  /// Message de sécurité adressé à un utilisateur (ex. lien de réinitialisation) : son contenu réel n'est
+  /// jamais stocké (body = mention neutre), il est produit au moment de l'envoi par le modèle `template`.
+  /// Ces messages n'apparaissent ni dans la liste des envois ni dans l'export.
+  sensitive      Boolean        @default(false)
+  template       String?
 
   status        MessageStatus @default(PENDING)
   attempts      Int           @default(0)

@@ -7,6 +7,7 @@ import { Card, Notice, PageHeader } from '@/components/ui';
 import { ActionButton } from '@/components/ui/ActionButton';
 import { ActionForm } from '@/components/ui/ActionForm';
 import { api } from '@/lib/api';
+import { formatDateTime } from '@/lib/format';
 
 export const metadata = { title: 'Paramètres' };
 
@@ -20,7 +21,8 @@ async function siteUrl() {
 
 export default async function SettingsPage({ searchParams }: PageProps<'/parametres'>) {
     const [organization, { bienvenue }, base] = await Promise.all([api.organization.get(), searchParams, siteUrl()]);
-    const webhook = `${base}/api/inbound/email?token=${encodeURIComponent(organization.inboundToken)}`;
+    const webhook = `${base}/api/inbound/email`;
+    const legacyWebhook = `${webhook}?token=${encodeURIComponent(organization.inboundToken)}`;
 
     return (
         <>
@@ -96,12 +98,26 @@ export default async function SettingsPage({ searchParams }: PageProps<'/paramet
             <Card title="Réception des emails">
                 <p className="muted">
                     Faites suivre les emails de vos clients vers Fluxia : chaque message devient une demande dans l’Inbox, analysée par l’IA. Indiquez cette
-                    adresse comme webhook d’emails entrants chez votre fournisseur (Postmark, Mailgun, SendGrid…).
+                    adresse comme webhook d’emails entrants chez votre fournisseur (Postmark, Mailgun, SendGrid…), avec le jeton secret dans l’en-tête HTTP{' '}
+                    <code>X-Fluxia-Token</code>.
                 </p>
                 <div className="secret mt" aria-label="Adresse du webhook">
                     {webhook}
                 </div>
-                <p className="muted small mt">Gardez cette adresse secrète : elle permet de déposer des demandes dans votre Inbox.</p>
+                <div className="secret mt" aria-label="Jeton secret (en-tête X-Fluxia-Token)">
+                    X-Fluxia-Token: {organization.inboundToken}
+                </div>
+                <details className="mt">
+                    <summary className="muted small">Votre fournisseur ne permet pas d’ajouter un en-tête ?</summary>
+                    <p className="muted small">
+                        Utilisez cette adresse, qui porte le jeton dans l’URL (moins sûr : l’URL peut apparaître dans des journaux techniques). Elle reste
+                        acceptée pour compatibilité.
+                    </p>
+                    <div className="secret" aria-label="Adresse du webhook avec jeton">
+                        {legacyWebhook}
+                    </div>
+                </details>
+                <p className="muted small mt">Gardez ce jeton secret : il permet de déposer des demandes dans votre Inbox.</p>
                 <div className="mt">
                     <ActionButton
                         action={rotateInboundToken}
@@ -121,12 +137,21 @@ export default async function SettingsPage({ searchParams }: PageProps<'/paramet
                 <a className="btn light" href="/export/donnees">
                     Exporter toutes les données
                 </a>
+                <p className="muted small mt">
+                    {organization.dataExportedAt ? `Dernier export : ${formatDateTime(organization.dataExportedAt)}.` : 'Aucun export téléchargé pour l’instant.'}
+                </p>
 
                 <details className="mt">
                     <summary className="strong">Supprimer l’entreprise</summary>
                     <Notice tone="danger">
-                        Suppression définitive et immédiate de l’entreprise, de tous les comptes, de toutes les données et de tous les fichiers. Exportez
-                        d’abord vos données : vos factures doivent être conservées 10 ans (obligation comptable).
+                        Suppression définitive et immédiate de l’entreprise, de tous les comptes, de toutes les données et de tous les fichiers. L’abonnement
+                        éventuel est résilié auprès de Stripe.
+                    </Notice>
+                    <Notice tone="warning" title="Factures : conservation de 10 ans">
+                        Les factures émises doivent être conservées 10 ans par votre entreprise (article L123-22 du Code de commerce), et Fluxia n’en garde
+                        aucune copie après la suppression. Si vous avez émis des factures, la suppression n’est possible qu’après avoir téléchargé l’export
+                        complet ci-dessus (il contient toutes vos factures), postérieur à votre dernière facture. Conservez cet export ainsi que les PDF
+                        Factur-X de vos factures.
                     </Notice>
                     <PasswordForm action={deleteOrganization} submitLabel="Supprimer définitivement">
                         <div className="form-row">
