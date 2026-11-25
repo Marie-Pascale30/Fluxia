@@ -22,6 +22,7 @@ import { PortalModule } from './portal/portal.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { QuotesModule } from './quotes/quotes.module.js';
 import { ReportsModule } from './reports/reports.module.js';
+import { RetentionModule } from './retention/retention.module.js';
 import { RequestsModule } from './requests/requests.module.js';
 import { StorageModule } from './storage/storage.service.js';
 import { TechniciansModule } from './technicians/technicians.module.js';
@@ -65,6 +66,7 @@ class HealthController {
         MaintenanceModule,
         InvoicesModule,
         BillingModule,
+        RetentionModule,
     ],
     controllers: [HealthController],
 })
