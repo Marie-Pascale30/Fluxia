@@ -96,8 +96,10 @@ Pensez à mentionner ces prestataires dans la politique de confidentialité.
 
 ## 7. Pages légales
 
-Renseignez les variables `LEGAL_*` de `.env.prod` : exploitant, adresse, immatriculation, contact, hébergeur.
-Elles alimentent `/conditions` et `/confidentialite`. **Ces pages sont des modèles : faites-les relire par un juriste**,
+Les pages `/mentions-legales`, `/conditions` et `/confidentialite` décrivent par défaut la démo de portfolio (éditrice
+particulière, projet non commercialisé, hébergeurs Vercel / Render / Neon). Pour une exploitation réelle, renseignez les
+variables `LEGAL_*` (exploitant, statut, immatriculation, contact, directeur de publication) et adaptez dans le code la liste des
+hébergeurs (`apps/web/src/lib/legal.ts`) et des sous-traitants (`/confidentialite`). **Ces pages sont des modèles : faites-les relire par un juriste**,
 et ajoutez vos conditions commerciales (prix, durée, résiliation) et l'accord de sous-traitance RGPD (article 28) proposé
 à vos clients.
 

@@ -462,6 +462,8 @@ export const Organization = z.object({
     accountRevenue: z.string(),
     accountVat: z.string(),
     inboundToken: z.string(),
+    /** Dernier export complet téléchargé (exigé avant la suppression si des factures ont été émises) */
+    dataExportedAt: date.nullable(),
 });
 
 /** Abonnement de l'entreprise (GET /billing). */
@@ -473,6 +475,8 @@ export const Billing = z.object({
     canWrite: z.boolean(),
     hasCustomer: z.boolean(),
     configured: z.boolean(),
+    /** Paiement : désactivé (démo), mode test Stripe (aucun débit réel) ou réel */
+    mode: z.enum(['off', 'test', 'live']),
 });
 
 /** Utilisateur connecté (GET /auth/me). */

@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import { LegalFooter } from '@/components/layout/LegalFooter';
 
-/** Pages publiques d'information (conditions, confidentialité). */
+/** Pages publiques d'information (mentions légales, conditions, confidentialité). */
 export default function LegalLayout({ children }: LayoutProps<'/'>) {
     return (
         <div className="portal">
@@ -10,6 +11,7 @@ export default function LegalLayout({ children }: LayoutProps<'/'>) {
                 </Link>
             </header>
             <main className="portal-main legal">{children}</main>
+            <LegalFooter />
         </div>
     );
 }

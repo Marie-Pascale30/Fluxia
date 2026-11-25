@@ -21,6 +21,7 @@ import { CurrentUser, Public, SubscriptionExempt } from '../auth/decorators.js';
 import { asOrganization, requireOrganizationId } from '../common/tenant.js';
 import type { Organization } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { stripeMode } from './stripe.js';
 import { canWrite, mapStripeStatus, trialDaysLeft } from './subscription.js';
 
 const WEB_URL = () => (process.env.PUBLIC_WEB_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -64,11 +65,12 @@ export class BillingService {
             canWrite: canWrite(org),
             hasCustomer: !!org.stripeCustomerId,
             configured: this.configured,
+            mode: stripeMode(),
         };
     }
 
     private assertConfigured() {
-        if (!this.configured) throw new ServiceUnavailableException("Le paiement en ligne n'est pas encore configuré sur cette plateforme");
+        if (!this.configured) throw new ServiceUnavailableException("Paiement non configuré sur cette démonstration : aucun abonnement réel n'est vendu");
     }
 
     /** Page de paiement Stripe pour souscrire l'abonnement. */

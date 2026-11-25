@@ -1432,3 +1432,43 @@ a.side-org:hover {
     padding-left: 20px;
     line-height: 1.6;
 }
+
+/* ─── Pied de page légal (pages publiques) ─────────────────── */
+.auth-shell {
+    background: radial-gradient(circle at 20% 10%, #1d2a3d 0, var(--nav) 55%);
+}
+
+.auth-shell .auth-page {
+    min-height: calc(100vh - 64px);
+}
+
+.legal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    justify-content: center;
+    align-items: center;
+    padding: 18px 16px 22px;
+    text-align: center;
+}
+
+.legal-footer nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    justify-content: center;
+}
+
+.auth-shell .legal-footer,
+.auth-shell .legal-footer a {
+    color: #aebbd0;
+}
+
+.legal .table-wrap {
+    overflow-x: auto;
+}
+
+.legal .table td {
+    vertical-align: top;
+    font-size: 13px;
+}

@@ -12,6 +12,9 @@ export default function SignupPage() {
                     flux<span>ia</span>
                 </div>
                 <p className="muted">Créez l’espace de votre entreprise. Vous en serez le responsable et pourrez ensuite ajouter vos techniciens.</p>
+                <p className="muted small">
+                    Démonstration : l’essai et l’abonnement sont simulés, aucun paiement n’est demandé. N’utilisez pas de données réelles de clients.
+                </p>
                 <SignupForm />
                 <p className="muted small mt">
                     Déjà un compte ? <Link href="/login">Se connecter</Link>

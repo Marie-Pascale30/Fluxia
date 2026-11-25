@@ -22,6 +22,14 @@ export default async function BillingPage({ searchParams }: PageProps<'/abonneme
         <>
             <PageHeader title="Abonnement" subtitle="Votre abonnement à Fluxia : paiement sécurisé par Stripe, sans engagement." />
 
+            {billing.mode !== 'live' && (
+                <Notice tone="warning" title="Démonstration : aucun paiement réel">
+                    {billing.mode === 'test'
+                        ? 'Stripe fonctionne ici en mode test : utilisez une carte de test (4242 4242 4242 4242), aucun montant ne sera débité.'
+                        : 'Fluxia est un projet de démonstration non commercialisé : aucun abonnement n’est vendu et aucun paiement n’est encaissé.'}
+                </Notice>
+            )}
+
             {succes && <Notice tone="success">Merci ! Votre abonnement est enregistré ; son activation peut prendre quelques secondes.</Notice>}
             {!billing.canWrite && (
                 <Notice tone="warning">Votre espace est en lecture seule : vos données restent consultables, mais rien ne peut être créé ni modifié.</Notice>
@@ -43,7 +51,10 @@ export default async function BillingPage({ searchParams }: PageProps<'/abonneme
                 </div>
 
                 {!billing.configured ? (
-                    <p className="muted mt">Le paiement en ligne n’est pas encore activé sur cette plateforme. Contactez l’éditeur pour vous abonner.</p>
+                    <p className="muted mt">
+                        <Badge label="Stripe : non configuré en démo" /> Le paiement en ligne est désactivé sur cette démonstration : l’abonnement est
+                        simulé.
+                    </p>
                 ) : (
                     <div className="row-flex mt">
                         {(billing.status === 'TRIALING' || billing.status === 'CANCELED') && (
