@@ -23,6 +23,28 @@ describe('Authentification', () => {
         const me = await call('GET', '/auth/me', undefined, { token });
         expect(me.body).toMatchObject({ name: 'Julien Durand', role: 'MANAGER' });
     });
+
+    it('révoque le jeton à la déconnexion', async () => {
+        const token = await login('sophie.dubois@fluxia.fr');
+        expect((await call('POST', '/auth/logout', undefined, { token })).status).toBe(204);
+        expect((await call('GET', '/auth/me', undefined, { token })).status).toBe(401);
+        expect(await login('sophie.dubois@fluxia.fr')).toBeTruthy();
+    });
+
+    it('limite les échecs de connexion par email, quelle que soit l’adresse IP', async () => {
+        const email = `inconnu.${Date.now()}@fluxia.fr`;
+        const statuses: number[] = [];
+        for (let i = 0; i < 11; i++) statuses.push((await call('POST', '/auth/login', { email, password: 'nope' }, { token: null })).status);
+        expect(statuses.slice(0, 10).every((s) => s === 401)).toBe(true);
+        expect(statuses[10]).toBe(429);
+    });
+
+    it('envoie les en-têtes de sécurité', async () => {
+        const res = await fetch(`http://localhost:${process.env.E2E_API_PORT ?? 4610}/api/health`);
+        expect(res.headers.get('x-powered-by')).toBeNull();
+        expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+        expect(res.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+    });
 });
 
 describe('Droits d’un technicien', () => {

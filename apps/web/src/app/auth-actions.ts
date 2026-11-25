@@ -9,9 +9,13 @@ export interface LoginState {
     error?: string;
 }
 
-/** N'accepte que des chemins internes (évite les redirections ouvertes). */
+/**
+ * N'accepte que des chemins internes (évite les redirections ouvertes) : un seul « / » initial,
+ * jamais suivi d'un autre « / » ou d'un « \ » (que les navigateurs traitent comme « / »),
+ * et aucune barre oblique inverse ni caractère de contrôle dans le reste du chemin.
+ */
 const safeNext = (value: FormDataEntryValue | null) =>
-    typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') ? value : null;
+    typeof value === 'string' && /^\/(?![/\\])/.test(value) && !value.includes('\\') && !/[\u0000-\u001f\u007f]/.test(value) ? value : null;
 
 async function openSession({ token, expiresIn }: LoginResult) {
     (await cookies()).set(SESSION_COOKIE, token, {
@@ -124,7 +128,10 @@ export async function deleteOrganization(_: PasswordState | null, form: FormData
     redirect('/login?supprime=1');
 }
 
+/** Déconnexion : le jeton est révoqué côté API (il ne pourra plus servir, même copié), puis le cookie est effacé. */
 export async function logout() {
-    (await cookies()).delete(SESSION_COOKIE);
+    const jar = await cookies();
+    if (jar.get(SESSION_COOKIE)) await api.auth.logout().catch(() => undefined);
+    jar.delete(SESSION_COOKIE);
     redirect('/login');
 }

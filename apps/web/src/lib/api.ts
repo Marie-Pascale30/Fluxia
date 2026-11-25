@@ -55,9 +55,11 @@ export class ApiError extends Error {
 interface RequestOptions extends RequestInit {
     /** Appel sans jeton (connexion, portail public) : un 401 n'entraîne pas de redirection. */
     anonymous?: boolean;
+    /** Jeton envoyé, mais un 401 n'entraîne pas de redirection (ex. déconnexion d'une session déjà expirée). */
+    keepSession?: boolean;
 }
 
-async function request<T>(path: string, { anonymous, ...init }: RequestOptions = {}): Promise<T> {
+async function request<T>(path: string, { anonymous, keepSession, ...init }: RequestOptions = {}): Promise<T> {
     // Données métier toujours fraîches : jamais de pré-rendu au build
     await connection();
     const token = anonymous ? undefined : (await cookies()).get(SESSION_COOKIE)?.value;
@@ -79,7 +81,7 @@ async function request<T>(path: string, { anonymous, ...init }: RequestOptions =
     }
 
     // Session absente ou expirée : retour à l'écran de connexion
-    if (response.status === 401 && !anonymous) redirect('/login?expired=1');
+    if (response.status === 401 && !anonymous && !keepSession) redirect('/login?expired=1');
 
     const body = response.status === 204 ? null : await response.json().catch(() => null);
     if (!response.ok) {
@@ -122,6 +124,8 @@ export const api = {
         signup: (data: { organizationName: string; name: string; email: string; password: string; acceptTerms: boolean }) =>
             request<LoginResult>('/auth/signup', { method: 'POST', body: JSON.stringify(data), anonymous: true }),
         me: () => get<SessionUser>('/auth/me'),
+        /** Révocation du jeton (sans redirection si la session a déjà expiré). */
+        logout: () => request<null>('/auth/logout', { method: 'POST', keepSession: true }).catch(() => null),
         forgotPassword: (email: string) =>
             request<{ message: string }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }), anonymous: true }),
         resetPassword: (token: string, password: string) =>

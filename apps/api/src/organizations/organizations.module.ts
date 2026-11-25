@@ -41,6 +41,15 @@ const STARTER_CATALOG = [
 
 const newInboundToken = () => randomBytes(24).toString('base64url');
 
+/**
+ * Adresse déjà utilisée : message volontairement générique (n'affirme pas qu'un compte existe) et orienté
+ * vers la connexion ou la réinitialisation. Une neutralité complète supposerait une vérification de l'adresse
+ * par email avant création du compte (les emails sont simulés sur la démo) ; l'énumération est freinée par
+ * une limite de tentatives par email et par un plafond global.
+ */
+const SIGNUP_UNAVAILABLE =
+    "Inscription impossible avec cette adresse email. Si vous avez déjà un compte, connectez-vous ou utilisez « Mot de passe oublié ».";
+
 /** Fiche de l'entreprise : coordonnées des documents, réglages de facturation, réception des emails. */
 @Injectable()
 export class OrganizationService {
@@ -83,7 +92,7 @@ export class OrganizationService {
         const email = dto.email.toLowerCase().trim();
         // Les emails de connexion sont uniques sur toute la plateforme
         const taken = await asSystem(() => this.prisma.user.findUnique({ where: { email } }));
-        if (taken) throw new ConflictException('Un compte existe déjà avec cet email');
+        if (taken) throw new ConflictException(SIGNUP_UNAVAILABLE);
 
         const passwordHash = await hashPassword(dto.password);
         try {
@@ -109,7 +118,7 @@ export class OrganizationService {
             });
         } catch (error) {
             // Inscription simultanée avec le même email
-            if ((error as { code?: string }).code === 'P2002') throw new ConflictException('Un compte existe déjà avec cet email');
+            if ((error as { code?: string }).code === 'P2002') throw new ConflictException(SIGNUP_UNAVAILABLE);
             throw error;
         }
     }
