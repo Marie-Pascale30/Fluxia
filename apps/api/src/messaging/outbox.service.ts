@@ -1,4 +1,5 @@
 import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
+import { maskRecipient } from '../common/mask.js';
 import { asOrganization, asSystem } from '../common/tenant.js';
 import type { OutboundMessage } from '../generated/prisma/client.js';
 import { OrganizationService } from '../organizations/organizations.module.js';
@@ -18,6 +19,8 @@ export interface AttachmentRef {
 }
 
 type AttachmentResolver = (id: string) => Promise<OutgoingAttachment>;
+/** Produit le texte réel d'un message sensible au moment de l'envoi (jamais stocké). */
+type TemplateRenderer = (message: OutboundMessage) => Promise<string>;
 
 const MAX_ATTEMPTS = 5;
 /** 30 s, 1 min, 2 min, 4 min… */
@@ -34,6 +37,7 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
     private readonly email: EmailTransport = emailTransportFromEnv();
     private readonly sms: SmsTransport = smsTransportFromEnv();
     private readonly resolvers = new Map<string, AttachmentResolver>();
+    private readonly templates = new Map<string, TemplateRenderer>();
     private timer?: NodeJS.Timeout;
     private running = false;
 
@@ -59,6 +63,19 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
     /** Déclare comment produire une pièce jointe (ex. PDF d'un rapport) au moment de l'envoi. */
     registerAttachment(kind: string, resolver: AttachmentResolver) {
         this.resolvers.set(kind, resolver);
+    }
+
+    /** Déclare comment produire le texte d'un message sensible (ex. lien de réinitialisation) au moment de l'envoi. */
+    registerTemplate(name: string, renderer: TemplateRenderer) {
+        this.templates.set(name, renderer);
+    }
+
+    /** Texte à expédier : celui stocké, ou pour un message sensible celui produit à l'instant par son modèle. */
+    private async text(message: OutboundMessage) {
+        if (!message.template) return message.body;
+        const render = this.templates.get(message.template);
+        if (!render) throw new Error(`Modèle de message inconnu : ${message.template}`);
+        return render(message);
     }
 
     async tick() {
@@ -99,7 +116,7 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
         } catch (error) {
             const reason = (error as Error).message.slice(0, 500);
             const failed = attempt >= MAX_ATTEMPTS;
-            this.logger.warn(`Envoi ${message.channel} vers ${message.recipient} : échec ${attempt}/${MAX_ATTEMPTS} (${reason})`);
+            this.logger.warn(`Envoi ${message.channel} vers ${maskRecipient(message.recipient)} : échec ${attempt}/${MAX_ATTEMPTS} (${reason})`);
             await this.prisma.outboundMessage.update({
                 where: { id: message.id },
                 data: {
@@ -120,12 +137,12 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
                     replyTo: company.email,
                     to: message.recipient,
                     subject: message.subject,
-                    text: message.body,
+                    text: await this.text(message),
                     attachments: await this.attachments(message),
                 });
             }
             case 'SMS':
-                return this.sms.send(message.recipient, message.body);
+                return this.sms.send(message.recipient, await this.text(message));
             case 'PUSH':
                 // Notification interne : la mission apparaît dans la vue terrain du technicien
                 return { transport: 'in-app' };
@@ -146,7 +163,7 @@ export class OutboxService implements OnModuleInit, OnModuleDestroy {
     /** Relance immédiate d'un message en échec (depuis l'interface). */
     async retry(id: string) {
         await this.prisma.outboundMessage.updateMany({
-            where: { id, status: 'FAILED' },
+            where: { id, status: 'FAILED', sensitive: false },
             data: { status: 'PENDING', attempts: 0, nextAttemptAt: new Date() },
         });
     }

@@ -1,15 +1,15 @@
 // Mot de passe oublié, réinitialisation par email et changement de mot de passe.
 import { call, login, useToken } from './client.js';
+import { lastEmail } from './mailbox.js';
 
 let manager: string;
 let email: string;
 let temporaryPassword: string;
 
-/** Lien de réinitialisation le plus récent envoyé à `to` (boîte d'envoi de l'entreprise). */
-async function resetToken(to: string) {
-    const { messages } = (await call('GET', '/messages', undefined, { token: manager })).body as { messages: { recipient: string; body: string }[] };
-    const message = messages.find((m) => m.recipient === to && m.body.includes('/mot-de-passe/'));
-    return message?.body.match(/\/mot-de-passe\/([\w-]+)/)?.[1];
+/** Lien de réinitialisation le plus récent reçu par `to` (emails simulés capturés par l'API de test). */
+async function resetToken(to: string, after = 0) {
+    const email = await lastEmail(to, (e) => e.text.includes('/mot-de-passe/'), after);
+    return email?.text.match(/\/mot-de-passe\/([\w-]+)/)?.[1];
 }
 
 beforeAll(async () => {
@@ -31,10 +31,20 @@ describe('Mot de passe oublié', () => {
         expect(await resetToken(email)).toBeTruthy();
     });
 
+    it('ne conserve pas le lien : ni dans les envois visibles des responsables, ni dans l’export', async () => {
+        const { messages } = (await call('GET', '/messages', undefined, { token: manager })).body as { messages: { recipient: string; body: string }[] };
+        expect(messages.some((m) => m.recipient === email)).toBe(false);
+        expect(JSON.stringify(messages)).not.toContain('/mot-de-passe/');
+        const exported = await call('GET', '/organization/export', undefined, { token: manager });
+        expect(JSON.stringify(exported.body)).not.toContain('/mot-de-passe/');
+        expect(JSON.stringify(exported.body.messages)).not.toContain(email);
+    });
+
     it('le lien fixe un nouveau mot de passe, ouvre la session et ne sert qu’une fois', async () => {
         const session = await login(email, temporaryPassword);
+        const before = Date.now();
         await call('POST', '/auth/forgot-password', { email });
-        const token = (await resetToken(email))!;
+        const token = (await resetToken(email, before))!;
 
         expect((await call('POST', '/auth/reset-password', { token, password: 'court' })).status).toBe(400);
         const res = await call('POST', '/auth/reset-password', { token, password: 'nouveau-mot-de-passe' });

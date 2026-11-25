@@ -3,6 +3,7 @@
 //   node scripts/e2e-api.mjs            → API sur http://localhost:4005
 // Variables : E2E_DATABASE_URL, E2E_API_PORT, E2E_WEB_URL
 import { execSync, spawn } from 'node:child_process';
+import { rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,11 +24,15 @@ const env = {
     MAINTENANCE_AUTO: 'false',
     UPLOAD_DIR: 'storage-e2e',
     LOGIN_RATE_LIMIT: '1000',
+    // Emails simulés déposés en JSON (lien de réinitialisation, jamais stocké en base)
+    MAIL_CAPTURE_DIR: resolve(api, 'mail-capture-e2e'),
+    RETENTION_PURGE: 'false',
     WEB_ORIGIN: process.env.E2E_WEB_URL ?? 'http://localhost:3005',
     PUBLIC_WEB_URL: process.env.E2E_WEB_URL ?? 'http://localhost:3005',
 };
 
 const run = (cmd) => execSync(cmd, { cwd: api, env, stdio: 'inherit' });
+rmSync(env.MAIL_CAPTURE_DIR, { recursive: true, force: true });
 run('npx prisma migrate deploy');
 run('npx tsx prisma/seed.ts');
 run('npx tsc -p tsconfig.build.json --outDir dist-e2e');

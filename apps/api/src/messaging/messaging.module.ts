@@ -24,8 +24,9 @@ import { OutboxService } from './outbox.service.js';
 
 /**
  * Webhook de réception d'emails (Postmark, Mailgun, SendGrid, format générique).
- * Chaque entreprise a son jeton secret (paramètres de l'entreprise), transmis en en-tête
- * `x-fluxia-token` ou en `?token=` : il désigne l'entreprise destinataire.
+ * Chaque entreprise a son jeton secret (paramètres de l'entreprise), qui désigne l'entreprise destinataire.
+ * Transmission recommandée : en-tête `x-fluxia-token`. Le paramètre `?token=` reste accepté pour compatibilité
+ * (fournisseurs qui ne permettent pas d'en-tête personnalisé), mais l'en-tête est prioritaire.
  */
 @Public()
 @Controller('inbound')
@@ -42,7 +43,7 @@ class InboundController {
         @Headers('x-fluxia-token') header?: string,
         @Query('token') query?: string,
     ) {
-        const organization = await this.organizations.byInboundToken(header ?? query ?? '');
+        const organization = await this.organizations.byInboundToken(header || query || '');
         if (!organization) throw new ForbiddenException('Jeton invalide');
 
         const email = normalizeInbound(payload);
@@ -73,13 +74,15 @@ class MessagesController {
 
     @Get()
     async list(@Query('status') status?: 'PENDING' | 'SENT' | 'FAILED') {
+        // Emails de sécurité adressés à un utilisateur (réinitialisation du mot de passe) : jamais visibles des autres responsables
         const [messages, counts] = await Promise.all([
             this.prisma.outboundMessage.findMany({
-                where: status ? { status } : undefined,
+                where: { sensitive: false, ...(status ? { status } : {}) },
                 orderBy: { createdAt: 'desc' },
                 take: 100,
+                omit: { sensitive: true, template: true },
             }),
-            this.prisma.outboundMessage.groupBy({ by: ['status'], _count: true }),
+            this.prisma.outboundMessage.groupBy({ by: ['status'], where: { sensitive: false }, _count: true }),
         ]);
         return {
             transports: this.outbox.transports,
@@ -92,7 +95,7 @@ class MessagesController {
     @HttpCode(200)
     async retry(@Param('id') id: string) {
         await this.outbox.retry(id);
-        return this.prisma.outboundMessage.findUniqueOrThrow({ where: { id } });
+        return this.prisma.outboundMessage.findUniqueOrThrow({ where: { id, sensitive: false }, omit: { sensitive: true, template: true } });
     }
 }
 

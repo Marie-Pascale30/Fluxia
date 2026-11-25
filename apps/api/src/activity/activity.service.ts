@@ -20,6 +20,11 @@ export interface OutboundInput {
     channel?: 'EMAIL' | 'SMS' | 'PUSH';
     /** Pièces jointes générées à l'envoi (ex. { kind: 'REPORT_PDF', id }) */
     attachments?: { kind: string; id: string }[];
+    /**
+     * Message de sécurité (ex. lien de réinitialisation) : `body` ne contient qu'une mention neutre,
+     * le contenu réel est produit à l'envoi par le modèle `template` (voir OutboxService.registerTemplate).
+     */
+    sensitive?: { template: string };
 }
 
 /** Traçabilité : journal d'audit + messages sortants (mis en boîte d'envoi, expédiés par OutboxService). */
@@ -35,8 +40,10 @@ export class ActivityService {
         return tx.activity.create({ data: { ...input, actor, actorName: human ? (user?.name ?? null) : null } });
     }
 
-    sendMessage({ attachments, ...input }: OutboundInput, tx: Tx = this.prisma) {
-        return tx.outboundMessage.create({ data: { channel: 'EMAIL', ...input, attachments: attachments ?? [] } });
+    sendMessage({ attachments, sensitive, ...input }: OutboundInput, tx: Tx = this.prisma) {
+        return tx.outboundMessage.create({
+            data: { channel: 'EMAIL', ...input, attachments: attachments ?? [], ...(sensitive ? { sensitive: true, template: sensitive.template } : {}) },
+        });
     }
 
     recent(limit = 15) {
@@ -53,7 +60,7 @@ export class ActivityService {
 
     messagesFor(entityIds: string[]) {
         return this.prisma.outboundMessage.findMany({
-            where: { entityId: { in: entityIds } },
+            where: { entityId: { in: entityIds }, sensitive: false },
             orderBy: { createdAt: 'asc' },
         });
     }

@@ -22,3 +22,5 @@ apps/api/storage-test/
 apps/api/dist-e2e/
 apps/api/storage-e2e/
 .env.prod
+apps/api/mail-capture-test/
+apps/api/mail-capture-e2e/

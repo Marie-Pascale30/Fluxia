@@ -1,4 +1,6 @@
 import { execSync, spawn, type ChildProcess } from 'node:child_process';
+import { rmSync } from 'node:fs';
+import { MAIL_CAPTURE_DIR } from './mailbox.js';
 
 // Avant la suite : schéma à jour, données de démo, puis démarrage de l'API compilée
 // (exactement comme en production) sur un port dédié. Les tests l'interrogent en HTTP.
@@ -34,11 +36,15 @@ export default async function setup() {
         IMAP_URL: '',
         UPLOAD_DIR: 'storage-test',
         LOGIN_RATE_LIMIT: '1000',
+        // Emails simulés déposés en JSON : seul moyen de lire un lien de réinitialisation (jamais stocké en base)
+        MAIL_CAPTURE_DIR,
+        RETENTION_PURGE: 'false',
         TRANSCRIPTION_URL: '',
         ANTHROPIC_API_KEY: '',
         PORT: String(E2E_PORT),
     };
 
+    rmSync(MAIL_CAPTURE_DIR, { recursive: true, force: true });
     execSync('npx prisma migrate deploy', { env, stdio: 'pipe' });
     execSync('npx tsx prisma/seed.ts', { env, stdio: 'pipe' });
     if (!process.env.E2E_SKIP_BUILD) execSync('npx nest build', { env, stdio: 'pipe' });

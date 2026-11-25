@@ -1,6 +1,9 @@
 // Transports de messages. Choisis par configuration ; par défaut, simulation ("log").
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Logger } from '@nestjs/common';
 import nodemailer from 'nodemailer';
+import { maskEmail, maskPhone } from '../common/mask.js';
 
 export interface OutgoingAttachment {
     filename: string;
@@ -43,12 +46,22 @@ export const textToHtml = (text: string) =>
         .map((p) => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`)
         .join('')}</div>`;
 
-/** Simulation : rien ne sort du serveur, le message est simplement tracé. */
+/**
+ * Simulation : rien ne sort du serveur, le message est simplement tracé (destinataire masqué).
+ * Tests uniquement : MAIL_CAPTURE_DIR (ignoré en production) y dépose chaque email en JSON, à la manière
+ * d'un « mail catcher », pour lire les liens qui ne sont jamais stockés en base (réinitialisation).
+ */
 export class LogEmailTransport implements EmailTransport {
     readonly name = 'log';
     private readonly logger = new Logger('Email(simulation)');
+    private readonly captureDir = process.env.NODE_ENV !== 'production' ? process.env.MAIL_CAPTURE_DIR : undefined;
     async send(email: OutgoingEmail): Promise<DeliveryReceipt> {
-        this.logger.log(`→ ${email.to} : ${email.subject}${email.attachments.length ? ` (+${email.attachments.length} PJ)` : ''}`);
+        this.logger.log(`→ ${maskEmail(email.to)} : ${email.subject}${email.attachments.length ? ` (+${email.attachments.length} PJ)` : ''}`);
+        if (this.captureDir) {
+            mkdirSync(this.captureDir, { recursive: true });
+            const file = join(this.captureDir, `${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+            writeFileSync(file, JSON.stringify({ to: email.to, subject: email.subject, text: email.text }));
+        }
         return { transport: this.name };
     }
 }
@@ -82,7 +95,8 @@ export class LogSmsTransport implements SmsTransport {
     readonly name = 'log';
     private readonly logger = new Logger('SMS(simulation)');
     async send(to: string, body: string): Promise<DeliveryReceipt> {
-        this.logger.log(`→ ${to} : ${body.slice(0, 80)}`);
+        // Ni le numéro complet ni le contenu (peut contenir des données personnelles) dans les journaux
+        this.logger.log(`→ ${maskPhone(to)} : SMS de ${body.length} caractère(s)`);
         return { transport: this.name };
     }
 }
